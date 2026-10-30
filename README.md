@@ -87,3 +87,11 @@ docker compose down -v    # destructif : supprime index / données persistées
 - `scripts/` : bootstrap mappings, audit mémoire, init topics.
 
 **S1 ne signifie pas MVP complet.** Auth, upload, recherche, incident, ML, alerting, WebSockets et dashboards Kibana définitifs sont planifiés S2–S6.
+
+## Correctif de pilotage S1 (30 octobre 2026)
+Le suivi officiel compte **quatre activités** uniquement (avec sous-tâches techniques), détaillées dans `docs/PLANIFICATION_S1.md`. La source de données réelle OpenSSH est préparable par `python scripts/prepare_openssh.py --download --limit 2000` lorsque l'accès réseau est autorisé. Les événements synthétiques proviennent de `simulator/generate.py` et ne doivent pas être décrits comme réels. Le dépôt Git local possède un historique; il doit encore être publié sur GitHub.
+
+### Publication du dépôt
+1. Créer un dépôt **vide** `campusguard-sentinel` sur le compte `syrinemrf` (sans README ni licence préinitialisés).
+2. Dans le dossier décompressé, exécuter `git remote add origin git@github.com:syrinemrf/campusguard-sentinel.git` puis `git push -u origin main` (authentification SSH déjà configurée sur son poste).
+3. En alternative, importer le bundle Git livré : `git clone CampusGuard_S1_historique.bundle campusguard-sentinel`.

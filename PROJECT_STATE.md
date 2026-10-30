@@ -1,41 +1,27 @@
-# CampusGuard — PROJECT_STATE
+# PROJECT_STATE — CampusGuard / Sentinel
+**Date de situation :** 30 octobre 2026 — correctif S1. **Encadrant :** Mohamed Najeh Issaoui.
 
-Dernière mise à jour : 2026-10-30. **Ne jamais confondre fichier créé et service testé sur la machine cible.**
+## Suivi officiel S1 (Kanban, pas Scrum)
+1. Analyse fonctionnelle + backlog : rédigés, revue enseignante non réalisée (`KAN-4`, `KAN-8`, `KAN-19`).
+2. Maquettes + modèles : Figma 3 pages (Starter) avec 6 desktop et 2 mobile ; modèles ECS/Mongo/Redis ; revue UX souhaitée (`KAN-5`, `KAN-9`, `KAN-10`, `KAN-11`).
+3. Données de sécurité : générateur synthétique fonctionnel ; source officielle Loghub identifiée et échantillon lu via connecteur ; le dataset complet n'est pas téléchargé/converti, script reproductible fourni (`KAN-7`, `KAN-15`, `KAN-16`).
+4. Git et Docker : dépôt **Git local initialisé avec commit** ; dépôt distant GitHub **inexistant**. Docker Compose et probes préparés, exécution réelle sur poste **non effectuée** (`KAN-6`, `KAN-12`–`KAN-14`, `KAN-17`, `KAN-18`).
 
-## Fait et vérifié dans l'environnement de création
+## Éléments vérifiés
+- `git log`: commit `77db26e` (avant dernier complément documentaire).
+- Python syntaxe valide (`compileall`).
+- YAML Compose analysable (8 services).
+- GitHub connecté (`syrinemrf`) mais **aucun outil pour créer un repository**.
+- Jira : 4 Epics = 4 tâches officielles ; 12 tâches planifiées, responsables/échéances, états de Kanban modifiés.
+- Figma : 3 pages (limite Starter), 6 desktop et 2 mobile, palette éclaircie. Prototype non interactif.
 
-- Analyse fonctionnelle, architecture C4/Mermaid, schémas ES/Mongo/Redis, ADR et user journey rédigés.
-- Structure applicative Flask `/`, `/health`, `/ready`, tests unitaires de la logique de base.
-- Compose avec ES, Mongo, Redis, Logstash, Kibana, Flask et profil STREAM Kafka/Filebeat ; limites mémoire, healthchecks, volumes.
-- Template `logs-*`, pipelines CSV et JSON, jeux synthétiques non sensibles.
-- Scripts de diagnostic, mapping et initialisation Kafka ; bus Kafka/Redis au niveau interface.
-
-## Résultat contrôles statiques
-
-- PASS : composition YAML (8 services, limites RAM, profils), mapping JSON et 200 journaux synthétiques.
-- NON EXÉCUTÉ : pytest faute de paquets installés et d’accès réseau ; Docker absent de ce runtime.
-
-## À valider sur Windows/WSL2 avec Docker Desktop
-
-- Disponibilité réelle des images et compatibilité Compose/config Logstash/Kibana.
-- Démarrage de tous les services CORE et mesure mémoire/CPU ; test séparé STREAM.
-- Création du template avant indexation et visibilité d'événements dans Discover Kibana.
-- Vérification des permissions d'écriture du dossier `datasets/rejected` monté dans Logstash.
-- Honeypot : aucun VPS confirmé, ne pas déployer de service ouvert à Internet.
-- OpenSSH historique : téléchargement et parsing non réalisés ; corpus non intégré.
-
-## Non implémenté en S1 (planifié S2–S6)
-
-Upload, authentification/RBAC, moteur de recherche, dashboards finaux, alerting, SOAR, ML, streaming temps réel effectivement câblé, rapport conformité, notification externe et tests de performance.
+## Non validé / dépendance externe
+- `docker compose up`, `docker stats`, indexation Elasticsearch et consultation Kibana : Docker indisponible dans le runtime.
+- `pytest` : imports Flask impossibles sans les dépendances (voir `app/requirements.txt`), résultat non réussi.
+- Source historique OpenSSH : origine officielle attestée, script de récupération, pas de dataset complet intégré dans le dépôt.
+- Invitation `issaoui.mn@itbs.tn` : compte Jira inexistant à la recherche, outil d'invitation non disponible.
 
 ## Décisions
-
-- CORE prioritaire ; STREAM optionnel.
-- Versioning de tous les schémas et absence de secrets dans git.
-- Events simulés RFC 5737, clairement distincts des traces réelles.
-
-## Risques
-
-- 12 Go RAM, image Kibana ou Kafka lourde ; dépendance à Docker Desktop.
-- S1 architecture cible plus vaste que les scénarios réellement intégrés.
-- L'interface Redis EventBus utilise Redis Streams pour la persistance ; Pub/Sub seul non durable.
+- Méthode Kanban avec WIP limité lors de l'exécution réelle ; revue et preuves obligatoires.
+- Priorité au socle CORE ; Kafka STREAM est optionnel pour S1 en raison de 12 Go de RAM.
+- Ne jamais faire passer un ticket en Terminé sans test réel.
