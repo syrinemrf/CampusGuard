@@ -1,0 +1,12 @@
+filebeat.inputs:
+  - type: filestream
+    id: sentinel-sample-auth
+    enabled: true
+    paths: [/data/samples/stream-auth.jsonl]
+    parsers:
+      - ndjson:
+          target: ''
+          add_error_key: true
+output.logstash:
+  hosts: ['logstash:5044']
+logging.level: info

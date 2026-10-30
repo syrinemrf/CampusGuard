@@ -1,0 +1,4 @@
+- pipeline.id: csv-security
+  path.config: "/usr/share/logstash/pipeline/csv.conf"
+- pipeline.id: json-security
+  path.config: "/usr/share/logstash/pipeline/json.conf"

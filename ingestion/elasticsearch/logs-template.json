@@ -1,0 +1,19 @@
+{
+  "index_patterns": ["logs-*"],
+  "priority": 100,
+  "template": {
+    "settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.refresh_interval": "5s"},
+    "mappings": {"dynamic": true, "properties": {
+      "@timestamp": {"type": "date"}, "message": {"type": "text"},
+      "event": {"properties": {"category": {"type": "keyword"}, "action": {"type": "keyword"}, "outcome": {"type": "keyword"}}},
+      "log": {"properties": {"level": {"type": "keyword"}}},
+      "service": {"properties": {"name": {"type": "keyword"}}},
+      "user": {"properties": {"name": {"type": "keyword"}}},
+      "source": {"properties": {"ip": {"type": "ip", "ignore_malformed": true}, "geo": {"properties": {"location": {"type": "geo_point"}, "country_iso_code": {"type": "keyword"}}}}},
+      "destination": {"properties": {"port": {"type": "integer"}}},
+      "labels": {"properties": {"ground_truth": {"type": "keyword"}}},
+      "rule": {"properties": {"name": {"type": "keyword"}}},
+      "threat": {"properties": {"technique": {"properties": {"id": {"type": "keyword"}}}}}
+    }}
+  }
+}

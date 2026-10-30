@@ -1,0 +1,12 @@
+.env
+__pycache__/
+.pytest_cache/
+.coverage
+.venv/
+*.pyc
+*.log
+*.zip
+.DS_Store
+datasets/raw/
+datasets/processed/
+reports/private/

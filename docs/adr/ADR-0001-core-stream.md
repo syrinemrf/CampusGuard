@@ -1,0 +1,3 @@
+# ADR-0001 — Séparer CORE et STREAM
+
+Statut : accepté (S1, conception). Contexte : 12 Go RAM machine Windows/WSL2 et exigence ELK+NoSQL+Flask ; Kafka demandé en complément, mais coûteux. Décision : CORE sans broker avec ingestion directe Logstash/ES ; STREAM ajoute Kafka KRaft et Filebeat pour buffer/rejeu à partir de S3. Conséquences : succès MVP indépendant de Kafka ; double configuration à maintenir ; mesures CPU/RAM réelles nécessaires. Alternative rejetée : Kafka obligatoire dès le démarrage (risque de surcharge et diagnostic confus). Conditions : le moteur métier ne dépend que d'EventBus, deux implémentations RedisBus/KafkaBus fournies avec tests, intégration bout-en-bout ultérieure.
