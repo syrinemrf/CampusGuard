@@ -1,0 +1,10 @@
+{
+  "data_view": {
+    "id": "campusguard-logs",
+    "name": "CampusGuard logs",
+    "title": "logs-*",
+    "timeFieldName": "@timestamp",
+    "allowNoIndex": true
+  },
+  "override": true
+}
