@@ -7,12 +7,20 @@ from pathlib import Path
 
 OUTPUT = Path(__file__).resolve().parents[1] / 'datasets' / 'samples'
 
-def generate(n=100, seed=2026):
+
+def generate(n=100, seed=2026, output_dir=None):
+    """Generate ``n`` deterministic events per source in ``output_dir``."""
+    if isinstance(n, bool) or not isinstance(n, int):
+        raise TypeError('n must be an integer')
+    if n < 0:
+        raise ValueError('n must be greater than or equal to zero')
+
+    destination = Path(output_dir) if output_dir is not None else OUTPUT
     rng = random.Random(seed)
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    destination.mkdir(parents=True, exist_ok=True)
     base = datetime(2026, 10, 30, 13, 0, tzinfo=timezone.utc)
-    with (OUTPUT / 'auth.jsonl').open('w', encoding='utf8') as auth, \
-            (OUTPUT / 'firewall.csv').open('w', newline='', encoding='utf8') as firewall:
+    with (destination / 'auth.jsonl').open('w', encoding='utf8') as auth, \
+            (destination / 'firewall.csv').open('w', newline='', encoding='utf8') as firewall:
         writer = csv.writer(firewall)
         writer.writerow(['timestamp', 'ip', 'action', 'port', 'level'])
         for i in range(n):
