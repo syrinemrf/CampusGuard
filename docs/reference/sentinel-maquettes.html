@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sentinel, maquettes de l’application</title>
+<style>
+:root{--bg:#f2f5fa;--sf:#fff;--sf2:#f7f9fd;--ink:#16203a;--mut:#64728b;--bd:#e2e8f1;--ac:#2f5bea;--acs:#e9efff;--cr:#d92d34;--hi:#d9620f;--me:#a87500;--lo:#2a6fd6;--ok:#168a5c;--sh:0 1px 2px rgba(22,32,58,.04),0 10px 28px -16px rgba(22,32,58,.18);color-scheme:light}
+[data-theme=dark]{--bg:#0e1424;--sf:#151d33;--sf2:#1a2440;--ink:#e8edf8;--mut:#93a1ba;--bd:#27324f;--ac:#7c9bff;--acs:#1d2a55;--cr:#ff7b80;--hi:#ff9a57;--me:#f0bf4d;--lo:#6fa8ff;--ok:#4fd1a1;--sh:0 1px 2px rgba(0,0,0,.3);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 "Segoe UI Variable","Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:none}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+aside{background:var(--sf);border-right:1px solid var(--bd);padding:20px 14px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;padding:0 8px 18px;letter-spacing:-.01em}
+.logo svg{width:28px;height:28px}
+.grp{font-size:12px;color:var(--mut);padding:14px 10px 4px}
+.nv{padding:8px 10px;border-radius:8px;color:var(--mut);font-weight:500}
+.nv:hover{background:var(--sf2);color:var(--ink)}
+.nv.on{background:var(--acs);color:var(--ac);font-weight:600}
+.me{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--bd);display:flex;gap:10px;align-items:center}
+.av{width:34px;height:34px;border-radius:50%;background:var(--acs);color:var(--ac);display:grid;place-items:center;font-weight:700}
+.me small{display:block;color:var(--mut)}
+.me a{margin-left:auto;font-size:12.5px;color:var(--mut)}
+main{padding:0 28px 40px;min-width:0}
+.top{display:flex;align-items:center;gap:14px;padding:18px 0;position:sticky;top:0;background:var(--bg);z-index:3}
+h1{font-size:22px;margin:0;letter-spacing:-.015em;flex:1}
+.q{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;width:240px;color:var(--mut)}
+.btn{border:1px solid var(--bd);background:var(--sf);color:var(--ink);border-radius:9px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--sf2)}
+.btn:focus-visible,.in:focus-visible,.nv:focus-visible,.chip:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.btn.p{background:var(--ac);border-color:var(--ac);color:#fff}
+[data-theme=dark] .btn.p{color:#0e1424}
+.btn.s{padding:4px 10px;font-size:12.5px}
+.g{display:grid;gap:16px;margin-bottom:16px}
+.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:2fr 1fr}.g2{grid-template-columns:1fr 1fr}.g21{grid-template-columns:3fr 2fr}
+.cd{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0}
+.cd.sh{box-shadow:var(--sh)}
+.cd h2{font-size:15px;margin:0 0 2px}
+.sub{color:var(--mut);font-size:13px;margin:0 0 14px}
+.kp b{display:block;font-size:28px;letter-spacing:-.02em;line-height:1.2}
+.kp span{color:var(--mut);font-size:13px}
+.kp em{font-style:normal;font-size:12.5px;font-weight:600}
+.kp .row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px}
+.up{color:var(--ok)}.dn{color:var(--cr)}
+.ar{width:100%;height:200px;display:block}
+.ax{display:flex;justify-content:space-between;color:var(--mut);font-size:12px;margin-top:4px}
+.lg{display:flex;gap:16px;font-size:12.5px;color:var(--mut);margin-bottom:8px}
+.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.dn2{display:flex;gap:18px;align-items:center}
+.dn2 svg{width:130px;flex:none}
+.dn2 ul{list-style:none;margin:0;padding:0;flex:1;display:grid;gap:8px}
+.dn2 li{display:flex;align-items:center;gap:8px}.dn2 li b{margin-left:auto}
+.dn2 i{width:10px;height:10px;border-radius:3px}
+.bar{display:grid;grid-template-columns:90px 1fr 42px;gap:10px;align-items:center;margin:10px 0}
+.bar div{height:8px;border-radius:99px;background:var(--sf2);overflow:hidden}
+.bar div i{display:block;height:100%;background:var(--ac);border-radius:99px}
+.bar b{text-align:right}
+.ev{display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--bd);cursor:pointer}
+.ev:first-of-type{border-top:0}
+.ev p{margin:0;flex:1}.ev small{color:var(--mut);display:block}
+.pl{font-size:12px;font-weight:600;padding:2px 10px;border-radius:99px;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);white-space:nowrap}
+.cr{--c:var(--cr)}.hi{--c:var(--hi)}.me2{--c:var(--me)}.lo{--c:var(--lo)}.ok{--c:var(--ok)}.mu{--c:var(--mut)}.ac{--c:var(--ac)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12.5px;color:var(--mut);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--sf2)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.fl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.in{background:var(--sf);border:1px solid var(--bd);border-radius:9px;padding:8px 12px;font:inherit;color:var(--ink);min-width:140px}
+.in.w{flex:1;min-width:220px}
+.chip{border:1px solid var(--bd);background:var(--sf);color:var(--mut);border-radius:99px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer}
+.chip.on{background:var(--acs);color:var(--ac);border-color:transparent;font-weight:600}
+.dz{border:2px dashed color-mix(in srgb,var(--ac) 45%,transparent);background:var(--acs);border-radius:14px;padding:34px 20px;text-align:center}
+.dz svg{width:42px;color:var(--ac)}
+.dz b{display:block;font-size:16px;margin:6px 0 2px}
+.pr{height:8px;border-radius:99px;background:var(--sf2);overflow:hidden;margin:8px 0 4px}.pr i{display:block;height:100%;width:64%;background:var(--ac);border-radius:99px}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 12px;margin:0}.kv dt{color:var(--mut)}.kv dd{margin:0;font-weight:600}
+.ring{width:96px;flex:none}
+.tl{list-style:none;margin:0;padding:0 0 0 16px;border-left:2px solid var(--bd)}
+.tl li{position:relative;padding:0 0 14px 12px}.tl li:before{content:"";position:absolute;left:-23px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--ac);border:2px solid var(--sf)}
+.tl small{color:var(--mut);display:block}
+.lv{height:420px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.ln{display:grid;grid-template-columns:78px 78px 110px 1fr;gap:12px;padding:7px 4px;border-top:1px solid var(--bd);font-size:13px}
+.ln span:first-child{color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:6px}
+.tg{display:inline-block;width:36px;height:20px;border-radius:99px;background:var(--bd);position:relative;cursor:pointer;vertical-align:middle}
+.tg:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.tg.on{background:var(--ac)}.tg.on:after{left:18px}
+.bare .app{display:block}.bare aside,.bare .top{display:none}
+.lgn{min-height:100vh;display:grid;place-items:center;padding:20px}
+.lgn .cd{width:380px;display:grid;gap:12px;box-shadow:var(--sh)}
+.lgn .in{width:100%}
+@media(max-width:900px){.app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;overflow-x:auto;padding:10px;border-right:0;border-bottom:1px solid var(--bd);gap:6px;align-items:center}.logo{padding:0 10px 0 0}.grp,.me{display:none}.nv{white-space:nowrap}main{padding:0 16px 30px}.g4{grid-template-columns:1fr 1fr}.g3,.g2,.g21{grid-template-columns:1fr}.q{display:none}.ln{grid-template-columns:70px 70px 1fr}.ln span:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside id="nav"></aside>
+<main><div class="top"><h1 id="tt"></h1><div class="q">Rechercher une IP, un utilisateur…</div><button class="btn" id="th" type="button"></button></div><div id="v"></div></main>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const SEV={crit:["Critical","cr"],high:["High","hi"],med:["Medium","me2"],low:["Low","lo"]};
+const pill=k=>`<span class="pl ${SEV[k][1]}">${SEV[k][0]}</span>`,st=(t,c)=>`<span class="pl ${c}">${t}</span>`;
+const tbl=(h,r)=>`<div class="tw"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${r.map(x=>`<tr>${x.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+const spark=(a,c)=>{const mx=Math.max(...a),mn=Math.min(...a);return `<svg width="84" height="30" viewBox="0 0 84 30"><polyline fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${a.map((v,i)=>(i*84/(a.length-1)).toFixed(1)+","+(27-(v-mn)/(mx-mn||1)*24).toFixed(1)).join(" ")}"/></svg>`};
+const kpi=(t,v,d,up,a,c)=>`<div class="cd sh kp"><span>${t}</span><div class="row"><div><b>${v}</b><em class="${up?"up":"dn"}">${d}</em></div>${spark(a,c)}</div></div>`;
+function area(a,b){const W=640,H=190,mx=Math.max(...a,...b)*1.12,x=i=>i*W/23,y=v=>H-v/mx*H,p=s=>s.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
+return `<svg class="ar" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${[0,1,2,3].map(i=>`<line x1="0" x2="${W}" y1="${i*H/4+1}" y2="${i*H/4+1}" stroke="var(--bd)"/>`).join("")}<path d="${p(a)}L${W} ${H}L0 ${H}Z" fill="var(--ac)" opacity=".12"/><path d="${p(a)}" fill="none" stroke="var(--ac)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/><path d="${p(b)}" fill="none" stroke="var(--ok)" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/></svg>`}
+function donut(v,c){const t=v.reduce((a,b)=>a+b),R=40,C=2*Math.PI*R;let o=0;return `<svg viewBox="0 0 100 100"><g transform="rotate(-90 50 50)">${v.map((n,i)=>{const l=n/t*C,s=`<circle cx="50" cy="50" r="${R}" fill="none" stroke="${c[i]}" stroke-width="14" stroke-dasharray="${l-2} ${C-l+2}" stroke-dashoffset="${-o}"/>`;o+=l;return s}).join("")}</g><text x="50" y="55" text-anchor="middle" font-size="17" font-weight="700" fill="var(--ink)">${t}</text></svg>`}
+const ALERTS=[["crit","Force brute SSH","203.0.113.45","Chine","128 échecs en 5 min","IP bloquée","il y a 4 min"],["high","Connexion depuis un pays non autorisé","198.51.100.23","Brésil","Compte j.martin","Nouvelle","il y a 18 min"],["med","Voyage impossible","192.0.2.77","Allemagne","Tunis puis Berlin en 12 min","Acquittée","il y a 1 h"],["high","Injection SQL sur le portail","203.0.113.12","Russie","14 requêtes suspectes","IP bloquée","il y a 2 h"],["low","Accès administrateur hors horaires","10.0.4.18","Tunisie","Compte admin.sy","Résolue","hier"]];
+const stc={"IP bloquée":"cr","Nouvelle":"ac","Acquittée":"mu","Résolue":"ok"};
+const ev=(a)=>`<div class="ev" onclick="location.hash='alert'">${pill(a[0])}<p>${a[1]}<small>${a[2]} · ${a[3]}</small></p><small>${a[6]}</small></div>`;
+const V={
+dashboard:()=>`<div class="g g4">${kpi("Logs indexés","1 284 530","+12 % cette semaine",1,[3,4,4,6,5,8,9,12],"var(--ac)")}${kpi("Logs aujourd’hui","48 213","+4 % depuis hier",1,[5,6,5,7,6,8,7,9],"var(--ok)")}${kpi("Erreurs critiques","312","+27 % depuis hier",0,[2,3,3,5,4,7,8,9],"var(--cr)")}${kpi("IP bloquées","27","9 ce matin",0,[1,1,2,2,3,4,4,6],"var(--hi)")}</div>
+<div class="g g3"><div class="cd sh"><h2>Tentatives de connexion par heure</h2><p class="sub">Dernières 24 heures</p><div class="lg"><span><i style="background:var(--ac)"></i>Échecs</span><span><i style="background:var(--ok)"></i>Réussites</span></div>${area([40,32,28,22,18,25,60,140,210,180,150,230,190,160,200,260,310,280,220,170,120,90,70,55],[8,6,5,4,4,10,45,120,150,130,110,100,95,105,120,115,90,60,40,25,18,14,10,9])}<div class="ax"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div></div>
+<div class="cd"><h2>Alertes par gravité</h2><p class="sub">Ce mois-ci</p><div class="dn2">${donut([12,31,58,24],["var(--cr)","var(--hi)","var(--me)","var(--lo)"])}<ul><li><i style="background:var(--cr)"></i>Critical<b>12</b></li><li><i style="background:var(--hi)"></i>High<b>31</b></li><li><i style="background:var(--me)"></i>Medium<b>58</b></li><li><i style="background:var(--lo)"></i>Low<b>24</b></li></ul></div></div></div>
+<div class="g g2"><div class="cd"><h2>Pays d’origine des attaques</h2><p class="sub">Part des échecs de connexion</p>${[["Chine",38],["États-Unis",21],["Russie",14],["Brésil",9],["Inde",7]].map(c=>`<div class="bar"><span>${c[0]}</span><div><i style="width:${c[1]*2.4}%"></i></div><b>${c[1]} %</b></div>`).join("")}</div>
+<div class="cd"><h2>Alertes récentes</h2><p class="sub">Cliquer pour voir le détail</p>${ALERTS.slice(0,4).map(ev).join("")}</div></div>`,
+alerts:()=>`<div class="fl"><button class="chip on">Toutes (5)</button><button class="chip">Critical</button><button class="chip">High</button><button class="chip">Medium</button><button class="chip">Low</button><span style="flex:1"></span><select class="in"><option>Tous les statuts</option></select></div><div class="cd">${tbl(["Gravité","Alerte","IP source","Pays","Statut","Quand",""],ALERTS.map(a=>[pill(a[0]),`<a href="#alert"><b>${a[1]}</b></a>`,`<span class="mono">${a[2]}</span>`,a[3],st(a[5],stc[a[5]]),a[6],`<button class="btn s">Acquitter</button> <button class="btn s">Résoudre</button>`]))}</div>`,
+alert:()=>`<div class="fl"><a class="btn s" href="#alerts">Retour aux alertes</a></div><div class="g g21"><div class="cd sh"><div class="fl" style="margin:0 0 4px">${pill("crit")}${st("IP bloquée","cr")}</div><h2 style="font-size:20px">Force brute SSH depuis 203.0.113.45</h2><p class="sub">Première tentative à 14 h 02, dernière à 14 h 07</p>
+<div style="display:flex;gap:24px;align-items:center;margin:18px 0"><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--bd)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="var(--cr)" stroke-width="10" stroke-linecap="round" stroke-dasharray="230 264" transform="rotate(-90 50 50)"/><text x="50" y="57" text-anchor="middle" font-size="24" font-weight="700" fill="var(--ink)">87</text></svg><dl class="kv"><dt>Score de risque</dt><dd>87 sur 100</dd><dt>Réputation de l’IP</dt><dd>94 % de signalements</dd><dt>Technique</dt><dd>${st("T1110 · Force brute","ac")}</dd><dt>Pays</dt><dd>Chine</dd><dt>Compte visé</dt><dd>root, admin, ubuntu</dd></dl></div>
+<h2>Chronologie</h2><ul class="tl" style="margin-top:12px"><li>14:02, première tentative échouée<small>Compte root, port 22</small></li><li>14:05, 5e échec, seuil dépassé<small>La règle « 5 échecs en 5 min » se déclenche</small></li><li>14:05, IP ajoutée à la liste de blocage<small>Blocage automatique pour 1 heure</small></li><li>14:07, 128 tentatives bloquées au total<small>Toutes refusées par l’application</small></li></ul></div>
+<div style="display:grid;gap:16px;align-content:start"><div class="cd"><h2>Actions</h2><p class="sub">Blocage jusqu’à 15 h 05</p><div style="display:grid;gap:8px"><button class="btn p">Résoudre l’alerte</button><button class="btn">Débloquer l’IP</button><button class="btn">Mettre en pause 1 heure</button></div></div><div class="cd"><h2>Commentaires</h2><p class="sub">Sy, 14 h 20</p><p style="margin:0 0 12px">Attaque automatisée connue, aucune connexion réussie. IP conservée dans la liste.</p><input class="in" style="width:100%" placeholder="Ajouter un commentaire"></div></div></div>`,
+live:()=>`<div class="cd"><div class="fl"><span class="pl ok"><i class="dot"></i>Connecté</span><span class="mut" id="rate" style="color:var(--mut)">3 logs par seconde</span><span style="flex:1"></span><select class="in"><option>Tous les niveaux</option></select><select class="in"><option>Tous les services</option></select><button class="btn" id="pz" type="button">Mettre en pause</button></div><div class="lv" id="lv"></div></div>`,
+search:()=>`<div class="cd" style="margin-bottom:16px"><div class="fl"><input class="in w" placeholder="Rechercher dans les logs, par exemple « failed password »"><select class="in"><option>Tous les niveaux</option></select><select class="in"><option>Tous les services</option></select><input class="in" value="24 – 31 oct. 2026"><button class="btn p">Rechercher</button><button class="btn">Réinitialiser</button></div><div class="fl" style="margin:0"><span style="color:var(--mut)">Recherches récentes</span><button class="chip">level:ERROR</button><button class="chip">203.0.113.45</button><button class="chip">sudo</button></div></div>
+<div class="cd"><div class="fl"><b>1 248 résultats</b><span style="flex:1"></span><button class="btn s">Exporter en CSV</button></div>${tbl(["Date et heure","Niveau","Service","Message",""],[["31 oct. 14:07:12",st("ERROR","cr"),"sshd","Failed password for root from 203.0.113.45",`<button class="btn s">Détails</button>`],["31 oct. 14:07:09",st("ERROR","cr"),"sshd","Failed password for admin from 203.0.113.45",`<button class="btn s">Détails</button>`],["31 oct. 14:06:51",st("WARNING","me2"),"webapp","Rate limit reached for 198.51.100.23",`<button class="btn s">Détails</button>`],["31 oct. 14:05:30",st("INFO","lo"),"auth","Accepted login for j.martin from Tunis",`<button class="btn s">Détails</button>`],["31 oct. 14:04:02",st("CRITICAL","cr"),"waf","SQL injection pattern blocked",`<button class="btn s">Détails</button>`]])}<div class="fl" style="margin:14px 0 0;justify-content:space-between"><span style="color:var(--mut)">Page 1 sur 25, 50 par page</span><span><button class="chip on">1</button> <button class="chip">2</button> <button class="chip">3</button></span></div></div>`,
+upload:()=>`<div class="g g21"><div class="cd"><div class="dz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg><b>Glisse un fichier ici</b><span style="color:var(--mut)">CSV, JSON ou TXT, 100 Mo maximum</span><div style="margin-top:14px"><button class="btn p">Choisir un fichier</button></div></div>
+<div class="fl" style="margin:18px 0 6px"><b>auth-2026-10-31.csv</b><span style="color:var(--mut)">14,2 Mo</span><span style="flex:1"></span>${st("Envoi 64 %","ac")}</div><div class="pr"><i></i></div>
+<h2 style="margin-top:18px">Aperçu des 10 premières lignes</h2><p class="sub">Vérifie les colonnes avant l’injection</p>${tbl(["timestamp","user","ip","result"],[["2026-10-31T14:02:11","root","203.0.113.45","failure"],["2026-10-31T14:02:14","admin","203.0.113.45","failure"],["2026-10-31T14:03:40","j.martin","10.0.4.21","success"]])}<div class="fl" style="margin:16px 0 0"><button class="btn p">Injecter dans Logstash</button><button class="btn">Annuler</button></div></div>
+<div class="cd"><h2>Envois récents</h2><p class="sub">Cinq derniers fichiers</p>${[["auth-2026-10-31.csv","En cours","ac"],["cowrie-2026-10-30.json","Indexé","ok"],["firewall-2026-10-30.csv","Indexé","ok"],["audit-admin.txt","Erreur","cr"]].map(f=>`<div class="ev" style="cursor:default"><p>${f[0]}<small>Il y a quelques minutes</small></p>${st(f[1],f[2])}</div>`).join("")}</div></div>`,
+files:()=>`<div class="fl"><input class="in w" placeholder="Rechercher un fichier"><select class="in"><option>Tous les statuts</option></select><input class="in" value="Octobre 2026"></div><div class="cd">${tbl(["Nom","Date d’envoi","Taille","Statut","Logs",""],[["auth-2026-10-31.csv","31 oct. 14:01","14,2 Mo",st("En cours","ac"),"61 204",""],["cowrie-2026-10-30.json","30 oct. 22:15","38,9 Mo",st("Indexé","ok"),"212 880",`<button class="btn s">Voir les logs</button>`],["firewall-2026-10-30.csv","30 oct. 09:40","9,6 Mo",st("Indexé","ok"),"54 019",`<button class="btn s">Voir les logs</button>`],["audit-admin.txt","29 oct. 17:02","0,4 Mo",st("Erreur","cr"),"0",`<button class="btn s">Voir l’erreur</button>`]])}</div>`,
+blocklist:()=>`<div class="fl"><input class="in w" placeholder="Rechercher une IP"><button class="btn p">Bloquer une IP</button></div><div class="cd">${tbl(["Adresse IP","Pays","Règle à l’origine","Réputation","Expire dans",""],[["203.0.113.45","Chine","5 échecs en 5 minutes","94 %","54 min",`<button class="btn s">Débloquer</button>`],["203.0.113.12","Russie","Injection SQL","88 %","1 h 12",`<button class="btn s">Débloquer</button>`],["198.51.100.88","Brésil","Analyse de ports","61 %","23 min",`<button class="btn s">Débloquer</button>`],["192.0.2.9","Inde","5 échecs en 5 minutes","47 %","8 min",`<button class="btn s">Débloquer</button>`]])}</div>`,
+rules:()=>`<div class="fl"><span style="flex:1"></span><button class="btn p">Nouvelle règle</button></div><div class="cd">${tbl(["Active","Règle","Condition","Fenêtre","Gravité","Notification",""],[["<span class=\"tg on\"></span>","Force brute","5 échecs depuis la même IP","5 min",pill("crit"),"E-mail, Slack",`<button class="btn s">Tester</button>`],["<span class=\"tg on\"></span>","Pays non autorisé","Connexion hors Tunisie et France","Immédiate",pill("high"),"E-mail",`<button class="btn s">Tester</button>`],["<span class=\"tg on\"></span>","Voyage impossible","Deux pays en moins d’une heure","1 h",pill("med"),"Slack",`<button class="btn s">Tester</button>`],["<span class=\"tg\"></span>","Silence des logs","Aucun log reçu","15 min",pill("low"),"E-mail",`<button class="btn s">Tester</button>`]])}</div>`,
+login:()=>`<div class="lgn"><div class="cd"><div class="logo" style="padding:0">${LOGO}Sentinel</div><div><h2 style="font-size:20px">Connexion</h2><p class="sub" style="margin:2px 0 0">Accède à ton espace de surveillance</p></div><input class="in" placeholder="Adresse e-mail"><input class="in" type="password" placeholder="Mot de passe"><a class="btn p" href="#dashboard" style="text-align:center">Se connecter</a><small style="color:var(--mut)">Après 5 tentatives échouées, ton adresse IP est bloquée une heure.</small></div></div>`
+};
+const T={dashboard:"Tableau de bord",alerts:"Alertes",alert:"Détail de l’alerte",live:"Logs en direct",search:"Recherche",upload:"Envoi de fichiers",files:"Fichiers envoyés",blocklist:"IP bloquées",rules:"Règles d’alerte",login:"Connexion"};
+const LOGO='<svg viewBox="0 0 32 32"><path d="M16 3l11 4v8c0 7-4.6 12.2-11 14C9.6 27.2 5 22 5 15V7z" fill="var(--ac)"/><path d="M11 16l3.5 3.5L21 12.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const NAV=[["Surveillance",[["dashboard"],["alerts"],["live"]]],["Données",[["search"],["upload"],["files"]]],["Réponse",[["blocklist"],["rules"]]]];
+$("#nav").innerHTML=`<div class="logo">${LOGO}Sentinel</div>`+NAV.map(g=>`<div class="grp">${g[0]}</div>`+g[1].map(i=>`<a class="nv" id="n-${i[0]}" href="#${i[0]}">${T[i[0]]}</a>`).join("")).join("")+`<div class="me"><span class="av">SM</span><div>Syrine<small>Analyste</small></div><a href="#login">Quitter</a></div>`;
+let tm,pz=false;
+const L=[["INFO","auth","Accepted login for j.martin from Tunis"],["ERROR","sshd","Failed password for root from 203.0.113.45"],["WARNING","webapp","Rate limit reached for 198.51.100.23"],["INFO","firewall","Allowed tcp 10.0.4.18:443"],["CRITICAL","waf","SQL injection pattern blocked"],["ERROR","sshd","Invalid user ubuntu from 203.0.113.45"],["INFO","audit","Admin changed alert rule Force brute"]];
+const LC={INFO:"lo",WARNING:"me2",ERROR:"cr",CRITICAL:"cr"};
+function addLog(){if(pz||!$("#lv"))return;const l=L[Math.floor(Math.random()*L.length)],d=new Date().toLocaleTimeString("fr-FR");const e=document.createElement("div");e.className="ln";e.innerHTML=`<span>${d}</span><span>${st(l[0],LC[l[0]])}</span><span>${l[1]}</span><span class="mono">${l[2]}</span>`;$("#lv").appendChild(e);while($("#lv").children.length>13)$("#lv").firstChild.remove()}
+function go(){const h=(location.hash||"#dashboard").slice(1),k=V[h]?h:"dashboard";clearInterval(tm);document.body.classList.toggle("bare",k=="login");$("#v").innerHTML=V[k]();$("#tt").textContent=T[k];document.querySelectorAll(".nv").forEach(n=>n.classList.toggle("on",n.id=="n-"+(k=="alert"?"alerts":k)));window.scrollTo(0,0);
+if(k=="live"){pz=false;for(let i=0;i<9;i++)addLog();tm=setInterval(addLog,1400);$("#pz").onclick=e=>{pz=!pz;e.target.textContent=pz?"Reprendre":"Mettre en pause"}}}
+addEventListener("hashchange",go);
+document.addEventListener("click",e=>{if(e.target.classList.contains("tg"))e.target.classList.toggle("on");if(e.target.classList.contains("chip")&&e.target.parentElement.querySelector(".chip.on")&&!e.target.closest(".tw")){e.target.parentElement.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));e.target.classList.add("on")}});
+function theme(t){document.documentElement.dataset.theme=t;$("#th").textContent=t=="dark"?"Mode clair":"Mode sombre";try{localStorage.setItem("sth",t)}catch(e){}}
+let t0="light";try{t0=localStorage.getItem("sth")||"light"}catch(e){}
+theme(t0);$("#th").onclick=()=>theme(document.documentElement.dataset.theme=="dark"?"light":"dark");
+go();
+</script>
+</body>
+</html>
