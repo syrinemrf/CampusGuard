@@ -60,8 +60,8 @@ Mémoire physique de l’hôte : 13,88 GiB au total, 89,0 % utilisés et 1,53 Gi
 ## Git et coordination externe
 
 - Le dépôt distant existe : <https://github.com/syrinemrf/CampusGuard>.
-- Le travail courant est sur `feat/core-infrastructure` ; aucune Pull Request n’est déclarée créée dans cet état.
-- Jira n’a pas été mis à jour pendant cette validation.
+- Le travail est publié sur `feat/core-infrastructure` dans la [Pull Request #1](https://github.com/syrinemrf/CampusGuard/pull/1), ouverte vers `main` ; le contrôle GitGuardian est réussi.
+- Les preuves et le lien de PR ont été ajoutés aux tickets Jira `KAN-13`, `KAN-14`, `KAN-16`, `KAN-17` et `KAN-18`, sans changement de statut.
 - Le suivi reste en Kanban avec WIP maximal de 2 ; aucune tâche ne doit être clôturée sans preuve réelle.
 
 ## Prochaine tranche
