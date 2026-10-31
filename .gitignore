@@ -9,4 +9,7 @@ __pycache__/
 .DS_Store
 datasets/raw/
 datasets/processed/
+datasets/rejected/*
+!datasets/rejected/.gitkeep
 reports/private/
+reports/feasibility-*.txt

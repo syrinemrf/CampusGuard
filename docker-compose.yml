@@ -6,19 +6,33 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - xpack.ml.enabled=false
-      - ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms1g -Xmx1g}
-    mem_limit: 2g
-    ports: ["127.0.0.1:9200:9200"]
+      - ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms768m -Xmx768m}
+    mem_limit: 1536m
+    ports: ["127.0.0.1:${ELASTICSEARCH_PORT:-9200}:9200"]
     volumes: ["es-data:/usr/share/elasticsearch/data"]
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s&filter_path=status' | grep -Eq '\"status\":\"(yellow|green)\"'"]
       interval: 20s
       timeout: 10s
       retries: 20
+      start_period: 40s
+    networks: [sentinel]
+  elasticsearch-init:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.19.10}
+    mem_limit: 128m
+    entrypoint: ["/bin/sh", "/setup/setup-index.sh"]
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      TEMPLATE_FILE: /setup/logs-template.json
+    volumes:
+      - ./scripts/setup-index.sh:/setup/setup-index.sh:ro
+      - ./ingestion/elasticsearch/logs-template.json:/setup/logs-template.json:ro
+    depends_on:
+      elasticsearch: {condition: service_healthy}
     networks: [sentinel]
   mongodb:
     image: mongo:${MONGO_VERSION:-7.0}
-    mem_limit: 512m
+    mem_limit: 384m
     ports: ["127.0.0.1:27017:27017"]
     volumes: ["mongo-data:/data/db"]
     healthcheck:
@@ -26,11 +40,12 @@ services:
       interval: 15s
       timeout: 8s
       retries: 15
+      start_period: 20s
     networks: [sentinel]
   redis:
     image: redis:${REDIS_VERSION:-7.4}-alpine
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
-    mem_limit: 256m
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+    mem_limit: 192m
     ports: ["127.0.0.1:6379:6379"]
     volumes: ["redis-data:/data"]
     healthcheck:
@@ -38,10 +53,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 5s
     networks: [sentinel]
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.10}
-    mem_limit: 1g
+    mem_limit: 768m
     environment:
       LS_JAVA_OPTS: "-Xms384m -Xmx384m"
       XPACK_MONITORING_ENABLED: "false"
@@ -50,19 +66,22 @@ services:
       - ./ingestion/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
       - ./ingestion/logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./datasets:/data
+      - logstash-data:/usr/share/logstash/data
     depends_on:
-      elasticsearch: {condition: service_healthy}
+      elasticsearch-init: {condition: service_completed_successfully}
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines/csv-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/json-security >/dev/null"]
       interval: 20s
       timeout: 10s
       retries: 20
+      start_period: 60s
     networks: [sentinel]
   kibana:
     image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.19.10}
-    mem_limit: 1g
+    mem_limit: 768m
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      NODE_OPTIONS: "--max-old-space-size=512"
       SERVER_HOST: 0.0.0.0
       SERVER_SECURITYRESPONSEHEADERS_DISABLEEMBEDDING: "false"
     ports: ["127.0.0.1:5601:5601"]
@@ -73,10 +92,24 @@ services:
       interval: 30s
       timeout: 10s
       retries: 25
+      start_period: 60s
+    networks: [sentinel]
+  kibana-init:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.19.10}
+    mem_limit: 128m
+    entrypoint: ["/bin/sh", "/setup/setup-kibana.sh"]
+    environment:
+      KIBANA_URL: http://kibana:5601
+      DATA_VIEW_FILE: /setup/kibana-data-view.json
+    volumes:
+      - ./scripts/setup-kibana.sh:/setup/setup-kibana.sh:ro
+      - ./ingestion/kibana/data-view.json:/setup/kibana-data-view.json:ro
+    depends_on:
+      kibana: {condition: service_healthy}
     networks: [sentinel]
   webapp:
     build: {context: ., dockerfile: app/Dockerfile}
-    mem_limit: 384m
+    mem_limit: 256m
     environment:
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
@@ -93,6 +126,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 15
+      start_period: 10s
     networks: [sentinel]
   kafka:
     profiles: [stream]
@@ -120,6 +154,7 @@ services:
       interval: 20s
       timeout: 15s
       retries: 20
+      start_period: 30s
     networks: [sentinel]
   filebeat:
     profiles: [stream]
@@ -136,5 +171,6 @@ networks:
   sentinel: {driver: bridge}
 volumes:
   es-data:
+  logstash-data:
   mongo-data:
   redis-data:
