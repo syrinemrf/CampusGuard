@@ -1,0 +1,22 @@
+flowchart LR
+  subgraph Utilisateur
+    B[Navigateur]
+  end
+  subgraph Docker["Réseau Docker « sentinel »"]
+    W[webapp<br/>Flask + gunicorn]
+    LS[Logstash<br/>pipeline upload-security]
+    ES[(Elasticsearch 8.19.10)]
+    KB[Kibana 8.19.10]
+    MG[(MongoDB 7.0)]
+    RD[(Redis 7.4)]
+    V[(volume uploads)]
+  end
+  B -->|HTTP 8000| W
+  B -->|HTTP 5601 · iframe| KB
+  W --> ES
+  W --> MG
+  W --> RD
+  W -->|écrit ndjson| V
+  V -->|lit ndjson| LS
+  LS -->|bulk| ES
+  KB --> ES

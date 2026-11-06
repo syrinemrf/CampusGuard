@@ -15,7 +15,8 @@ Le dépôt contient un **socle CORE validé localement** (infrastructure Docker,
 - routes de santé `/health` et `/ready` ;
 - sorties de rejet distinctes configurées pour CSV et JSON, avec le cas JSON invalide vérifié de bout en bout ;
 - adaptateurs expérimentaux Redis Streams/Pub/Sub et Kafka ;
-- 166 tests automatisés (socle, disponibilité, mapping, simulateur, bus, et S2 : parsing, authentification, upload, recherche, API/OpenAPI, câblage Docker/Logstash).
+- **S3** : trois visualisations Kibana et un dashboard (`sentinel-security-overview`) exportés en NDJSON dans `ingestion/kibana/`, ré-importables (`scripts/setup-kibana.sh`), intégrés dans l’application (page « Dashboard Kibana », CSP `frame-src` limitée à l’origine Kibana) ; personnalisation par utilisateur des blocs du tableau de bord (MongoDB `dashboard_prefs`) ; documents d’[analyse fonctionnelle](docs/ANALYSE_FONCTIONNELLE.pdf) et d’[architecture technique](docs/ARCHITECTURE.pdf) ;
+- 184 tests automatisés (socle, disponibilité, mapping, simulateur, bus, S2 : parsing, authentification, upload, recherche, API/OpenAPI, câblage Docker/Logstash, et S3 : objets Kibana, CSP, préférences du dashboard).
 
 ## Validation CORE du 31 octobre 2026
 
@@ -221,10 +222,10 @@ Cette configuration est réservée à un **laboratoire local** : Elasticsearch f
 
 Au-delà du CORE et de S2, le projet ne fournit pas encore :
 
-- le tableau de bord, la gestion des utilisateurs par l’interface et le responsive complet (S3) ;
+- la gestion des utilisateurs par l’interface et le responsive complet ;
 - le moteur d’alertes, le machine learning ou les notifications temps réel ;
 - les actions SOAR de blocage et de déblocage ;
-- les trois visualisations de sécurité et le dashboard Kibana exporté exigés pour le MVP ;
+- la **validation sur Kibana réel** des visualisations et du dashboard S3 : ils sont générés et testés contre le template Elasticsearch, mais l’import et l’intégration en iframe restent à vérifier avec `scripts/verify_s3.py` ;
 - un pipeline Kafka opérationnel de bout en bout.
 
 Ces fonctions sont prévues dans les phases suivantes. L’état courant et les éléments non testés sont suivis dans [`PROJECT_STATE.md`](PROJECT_STATE.md).

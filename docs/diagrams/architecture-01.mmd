@@ -1,0 +1,11 @@
+flowchart LR
+  Analyst([Analyste SOC]) --> App
+  Admin([Administrateur]) --> App
+  Auditor([Auditeur]) --> App
+  Files[/Fichiers CSV · JSON · TXT<br/>importés par l'utilisateur/] --> App
+  Sim[/Simulateur de logs<br/>étiqueté/] --> App
+  App[CampusGuard / Sentinel<br/>application web + pile ELK]
+  App --> ELK[(Elasticsearch · Kibana)]
+  App --> Mongo[(MongoDB)]
+  App --> Redis[(Redis)]
+  Teacher([Encadrant]) -. consulte livrables et Jira .-> App

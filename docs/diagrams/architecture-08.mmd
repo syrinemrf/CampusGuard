@@ -1,0 +1,9 @@
+flowchart LR
+  ES[(Elasticsearch)] -->|requêtes périodiques| W[Worker de détection<br/>Celery]
+  W -->|fenêtre glissante| R[(Redis)]
+  W -->|alerte + audit| M[(MongoDB)]
+  W -->|SET blocked:ip EX 3600| R
+  W -->|publication| P[Pub/Sub · Stream]
+  P --> WS[WebSocket Flask<br/>live tail · KPI]
+  WS --> B[Navigateur]
+  M --> UI[Tableau d'alertes · incidents]

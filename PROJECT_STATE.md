@@ -18,7 +18,7 @@ Ce qui est fait (code dans `app/`, `ingestion/logstash/pipeline/upload.conf`, `d
 
 Preuves **réelles** disponibles :
 
-- `python -m pytest -q` → **166 passed** (21 tests S1 + 145 tests S2 : parsing 46, auth 19, upload 24, recherche 39, API/OpenAPI/débit 7, câblage Docker/Logstash/ES 10). MongoDB, Redis et Elasticsearch y sont **simulés** (mongomock, fakeredis, faux client ES) ; Logstash et Docker n'y sont pas exécutés.
+- `python -m pytest -q` → **184 passed** (21 tests S1 + 145 tests S2 : parsing 46, auth 19, upload 24, recherche 39, API/OpenAPI/débit 7, câblage Docker/Logstash/ES 10 + 18 tests S3 : objets Kibana 12, préférences du dashboard 6). MongoDB, Redis et Elasticsearch y sont **simulés** (mongomock, fakeredis, faux client ES) ; Logstash et Docker n'y sont pas exécutés.
 - Parcours navigateur (Chromium) sur données simulées : connexion → upload → aperçu → confirmation → statut « Indexé » → recherche → détail, **0 erreur console** (CSP respectée) ; Swagger UI chargé sous la même CSP (17 opérations affichées).
 
 **À exécuter par Syrine (non fait ici, car ni Docker ni Logstash n'existent dans l'environnement de développement)** :
@@ -36,7 +36,8 @@ Tant que ce script n'a pas affiché 18/18 contrôles réussis, l'ingestion Logst
 - La normalisation (horodatage UTC, IP, niveaux) est faite par l'application (`app/services/parsing.py`, testée) ; Logstash est la seconde validation et l'indexeur. Les horodatages sans fuseau sont **supposés UTC** et signalés ; une ligne TXT sans horodatage reçoit l'heure de réception (`labels.time_mode = ingest`).
 - Les motifs `sshd` du parseur TXT sont heuristiques et **non validés** sur le corpus OpenSSH complet.
 - Le nouvel index suit le schéma `dynamic: false` : seuls les champs mappés sont filtrables.
-- Pas encore : visualisations Kibana (3 exigées) et dashboard Kibana exporté avec intégration dans l'application (S3), alertes G, temps réel H, gestion des utilisateurs par l'interface, validation des motifs OpenSSH sur un vrai corpus.
+- S3 (code + tests, **non validé sur Kibana réel**) : 3 visualisations + 1 dashboard Kibana générés par `scripts/build_kibana_objects.py`, exportés dans `ingestion/kibana/sentinel-dashboard.ndjson`, importés par `scripts/setup-kibana.sh`, affichés dans l'application (`/kibana`, CSP `frame-src`), préférences de blocs par utilisateur. Vérification réelle : `scripts/verify_s3.py`.
+- Pas encore : alertes G, temps réel H, gestion des utilisateurs par l'interface, validation des motifs OpenSSH sur un vrai corpus.
 
 ## Résultat de la tranche CORE (31 octobre 2026)
 
@@ -86,7 +87,7 @@ Mémoire physique de l’hôte : 13,88 GiB au total, 89,0 % utilisés et 1,53 Gi
 ## Non réalisé ou non validé
 
 - Authentification, upload, recherche : **développés en S2 (voir plus haut), non validés sur la stack Docker réelle**.
-- Trois visualisations de sécurité et dashboard Kibana exporté : non réalisés ; seule la data view et Discover sont validés.
+- Trois visualisations de sécurité et dashboard Kibana exporté : **réalisés en code et testés par simulation (S3)**, mais l'import dans un Kibana 8.19.10 réel, l'affichage en iframe et l'export ré-importable ne sont pas prouvés (`scripts/verify_s3.py` à exécuter et à archiver dans `docs/evidence/`).
 - Alerting G, blocage TTL, temps réel H, Kafka, ML et NLP : non développés ou non exécutés.
 - Source historique OpenSSH complète : non intégrée et non comptée.
 - Installation sur une seconde machine : non testée.
@@ -102,5 +103,5 @@ Mémoire physique de l’hôte : 13,88 GiB au total, 89,0 % utilisés et 1,53 Gi
 
 1. **Valider S2 sur la stack réelle** (`scripts/verify_s2.py`, 18 contrôles) et ajouter la sortie comme preuve dans `docs/evidence/`.
 2. Fermer les écarts S1 encore non prouvés : source OpenSSH réelle (parseur + comptes), mesure mémoire avec webapp S2, accès de l'encadrant à Jira, unification des 10 vues Figma.
-3. S3 : dashboard (KPI, séries temporelles), trois visualisations Kibana + dashboard exporté, gestion des utilisateurs, couverture de tests ≥ 70 %, tag `v1.0-mvp` après test.
+3. S3 : exécuter `scripts/verify_s3.py` sur la stack réelle et archiver la sortie ; reste : gestion des utilisateurs par l'interface, mesure de couverture de tests (≥ 70 %), tag `v1.0-mvp` après validation réelle.
 Kafka, ML et NLP restent hors périmètre tant que le MVP obligatoire n'est pas couvert.

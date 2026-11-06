@@ -1,0 +1,25 @@
+sequenceDiagram
+  actor A as Analyste
+  participant W as Flask
+  participant M as MongoDB
+  participant V as Volume uploads
+  participant L as Logstash
+  participant E as Elasticsearch
+  A->>W: POST /api/uploads (fichier)
+  W->>W: taille · extension · MIME · binaire · UTF-8 · SHA-256
+  W->>M: uploaded_files état = received (doublon → 409)
+  W->>V: analyse en un passage → staging/{id}.ndjson
+  W->>M: état = validated + aperçu + statistiques + erreurs
+  W-->>A: 201 aperçu 10 lignes (ou 422 rejeté)
+  A->>W: POST /api/uploads/{id}/confirm
+  W->>M: état = ingesting (réservation atomique)
+  W->>V: déplacement atomique → ready/{id}.ndjson
+  L->>V: lit ready/*.ndjson
+  L->>L: revalidation · GeoIP · event.ingested · empreinte
+  L->>E: bulk dans logs-upload-AAAA.MM.jj
+  L->>V: rejets → datasets/rejected/upload-{id}.ndjson
+  A->>W: GET /api/uploads/{id}
+  W->>E: _count sur labels.upload_id
+  W->>W: compte les lignes rejetées
+  W->>M: état = indexed / partial / failed
+  W-->>A: statut mesuré

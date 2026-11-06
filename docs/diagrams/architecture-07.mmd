@@ -1,0 +1,18 @@
+sequenceDiagram
+  actor A as Analyste
+  participant W as Flask
+  participant R as Redis
+  participant E as Elasticsearch
+  participant M as MongoDB
+  A->>W: GET /api/search?q=…&level=…&sort_by=…
+  W->>W: validation stricte des paramètres (400 sinon)
+  W->>R: clé sentinel:cache:search:{sha256 des critères}
+  alt cache présent
+    R-->>W: résultat (cached = true)
+  else
+    W->>E: requête DSL (bool/filter + tri + pagination)
+    E-->>W: hits
+    W->>R: SETEX 30 s
+  end
+  W->>M: saved_searches (page 1 seulement)
+  W-->>A: JSON paginé
