@@ -45,7 +45,7 @@ def build_spec():
                                  "les requêtes POST/DELETE exigent l'en-tête X-CSRF-Token renvoyé à la connexion. "
                                  "Limite : 300 requêtes/minute et par utilisateur (HTTP 429).")},
         'servers': [{'url': '/'}],
-        'tags': [{'name': 'auth'}, {'name': 'uploads'}, {'name': 'search'}, {'name': 'v1', 'description': 'Alias stables /api/v1 du sujet (logs, files, stats).'}],
+        'tags': [{'name': 'auth'}, {'name': 'uploads'}, {'name': 'search'}, {'name': 'dashboard'}, {'name': 'v1', 'description': 'Alias stables /api/v1 du sujet (logs, files, stats).'}],
         'security': secure,
         'paths': {
             '/api/auth/login': {'post': {'tags': ['auth'], 'summary': 'Connexion (JSON)', 'security': [],
@@ -73,6 +73,12 @@ def build_spec():
                 'parameters': _SEARCH_PARAMS, 'responses': {'200': {'description': 'CSV', 'content': {'text/csv': {'schema': {'type': 'string'}}}}}}},
             '/api/events/{event_id}': {'parameters': [_ID], 'get': {'tags': ['search'], 'summary': "Détail d'un événement (_source Elasticsearch)", 'responses': {'200': _ok('Événement'), '404': _ERR}}},
             '/api/stats': {'get': {'tags': ['search'], 'summary': 'Statistiques du tableau de bord', 'responses': {'200': _ok('Statistiques', {'$ref': '#/components/schemas/Stats'})}}},
+            '/api/dashboard/prefs': {
+                'get': {'tags': ['dashboard'], 'summary': 'Blocs du tableau de bord affichés (préférences de l’utilisateur)', 'responses': {'200': _ok('Préférences'), '401': _ERR}},
+                'put': {'tags': ['dashboard'], 'summary': 'Enregistrer les blocs affichés',
+                        'requestBody': {'required': True, 'content': {'application/json': {'schema': {'type': 'object', 'required': ['widgets'], 'properties': {'widgets': {'type': 'object', 'additionalProperties': {'type': 'boolean'}, 'example': {'timeline': False}}}}}}},
+                        'responses': {'200': _ok('Préférences enregistrées'), '400': _ERR, '401': _ERR}},
+                'delete': {'tags': ['dashboard'], 'summary': 'Tout réafficher (réinitialiser)', 'responses': {'200': _ok('Préférences par défaut'), '401': _ERR}}},
             '/api/v1/logs': {'get': _search_op('Liste paginée des logs', 'v1')},
             '/api/v1/logs/{event_id}': {'parameters': [_ID], 'get': {'tags': ['v1'], 'summary': "Détail d'un log", 'responses': {'200': _ok('Événement'), '404': _ERR}}},
             '/api/v1/files': {'get': {'tags': ['v1'], 'summary': 'Fichiers importés', 'responses': {'200': _ok('Liste')}}},

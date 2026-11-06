@@ -35,3 +35,7 @@ tr.clickable{cursor:pointer}
 .thbtn:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 .typesel{max-width:320px;margin-bottom:12px}
 @media(max-width:900px){.chart-box{height:220px}}
+
+.custom{margin-bottom:14px}.custom summary{cursor:pointer;font-weight:600}.custom .checks{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 12px}
+.custom label{display:inline-flex;gap:6px;align-items:center}
+.kibana-frame{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--bd);border-radius:12px;background:var(--sf)}

@@ -3,6 +3,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user
 
 from app.security import ROLE_ADMIN, ROLE_ANALYST, error_response, roles_required
+from app.services.prefs import DashboardPrefs, PrefsError
 from app.services.search import SearchService, ValidationError, parse_params
 from app.services.uploads import UploadError, UploadService
 from app.services.users import record_audit
@@ -151,6 +152,31 @@ def event_detail(event_id):
     if event is None:
         return error_response(404, 'not_found', 'Événement introuvable.')
     return jsonify(event)
+
+
+# ------------------------------------------------------------------ dashboard customisation
+
+@bp.get('/dashboard/prefs')
+@roles_required()
+def get_dashboard_prefs():
+    return jsonify(widgets=DashboardPrefs(_stores().db).get(current_user.username))
+
+
+@bp.put('/dashboard/prefs')
+@roles_required()
+def put_dashboard_prefs():
+    data = request.get_json(silent=True) or {}
+    try:
+        widgets = DashboardPrefs(_stores().db).save(current_user.username, data.get('widgets'))
+    except PrefsError as exc:
+        return error_response(400, 'invalid_parameters', str(exc))
+    return jsonify(widgets=widgets)
+
+
+@bp.delete('/dashboard/prefs')
+@roles_required()
+def reset_dashboard_prefs():
+    return jsonify(widgets=DashboardPrefs(_stores().db).reset(current_user.username))
 
 
 # ------------------------------------------------------------------ OpenAPI + stable /api/v1 aliases
