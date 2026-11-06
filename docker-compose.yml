@@ -55,6 +55,15 @@ services:
       retries: 10
       start_period: 5s
     networks: [sentinel]
+  uploads-init:
+    # Gives the shared upload volume to the unprivileged webapp user (uid 10001) before anything uses it.
+    image: busybox:1.37
+    user: root
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /data/uploads/staging /data/uploads/ready && chown -R 10001:10001 /data/uploads && chmod -R 755 /data/uploads"]
+    volumes:
+      - uploads:/data/uploads
+    networks: [sentinel]
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.10}
     mem_limit: 768m
@@ -66,11 +75,13 @@ services:
       - ./ingestion/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
       - ./ingestion/logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./datasets:/data
+      - uploads:/data/uploads
       - logstash-data:/usr/share/logstash/data
     depends_on:
       elasticsearch-init: {condition: service_completed_successfully}
+      uploads-init: {condition: service_completed_successfully}
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines/csv-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/json-security >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines/csv-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/json-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/upload-security >/dev/null"]
       interval: 20s
       timeout: 10s
       retries: 20
@@ -109,15 +120,28 @@ services:
     networks: [sentinel]
   webapp:
     build: {context: ., dockerfile: app/Dockerfile}
-    mem_limit: 256m
+    mem_limit: 320m
     environment:
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-dev-not-for-production}
       BUS_BACKEND: ${BUS_BACKEND:-redis}
+      MONGO_DB: ${MONGO_DB:-sentinel}
+      UPLOAD_DIR: /data/uploads
+      REJECTED_DIR: /data/rejected
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      API_RATE_LIMIT_PER_MIN: ${API_RATE_LIMIT_PER_MIN:-300}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ANALYST_PASSWORD: ${SEED_ANALYST_PASSWORD:-}
+      SEED_AUDITOR_PASSWORD: ${SEED_AUDITOR_PASSWORD:-}
+    volumes:
+      - uploads:/data/uploads
+      - ./datasets/rejected:/data/rejected:ro
     ports: ["127.0.0.1:${APP_PORT:-8000}:8000"]
     depends_on:
+      uploads-init: {condition: service_completed_successfully}
       elasticsearch: {condition: service_healthy}
       mongodb: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -172,5 +196,6 @@ networks:
 volumes:
   es-data:
   logstash-data:
+  uploads:
   mongo-data:
   redis-data:
