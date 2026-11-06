@@ -112,9 +112,11 @@ services:
     environment:
       KIBANA_URL: http://kibana:5601
       DATA_VIEW_FILE: /setup/kibana-data-view.json
+      OBJECTS_FILE: /setup/sentinel-dashboard.ndjson
     volumes:
       - ./scripts/setup-kibana.sh:/setup/setup-kibana.sh:ro
       - ./ingestion/kibana/data-view.json:/setup/kibana-data-view.json:ro
+      - ./ingestion/kibana/sentinel-dashboard.ndjson:/setup/sentinel-dashboard.ndjson:ro
     depends_on:
       kibana: {condition: service_healthy}
     networks: [sentinel]
@@ -132,6 +134,7 @@ services:
       REJECTED_DIR: /data/rejected
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
       API_RATE_LIMIT_PER_MIN: ${API_RATE_LIMIT_PER_MIN:-300}
+      KIBANA_PUBLIC_URL: ${KIBANA_PUBLIC_URL:-http://localhost:5601}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_ANALYST_PASSWORD: ${SEED_ANALYST_PASSWORD:-}

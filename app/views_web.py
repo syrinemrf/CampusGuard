@@ -2,7 +2,9 @@
 from flask import Blueprint, current_app, render_template
 from flask_login import current_user
 
+from app.kibana import dashboard_url, discover_url
 from app.security import ROLE_ADMIN, ROLE_ANALYST, ROLE_LABELS, roles_required
+from app.services.prefs import WIDGET_LABELS, DashboardPrefs
 from app.services.search import SearchService
 from app.services.uploads import UploadService
 from app.stores import ElasticError
@@ -24,7 +26,8 @@ def home():
         es_error = str(exc)
     return render_template('home.html', stats=stats, es_error=es_error,
                            uploads=upload_service.list(current_user, limit=5),
-                           history=search.history(current_user, 5), page='home')
+                           history=search.history(current_user, 5), page='home',
+                           widgets=DashboardPrefs(stores.db).get(current_user.username), widget_labels=WIDGET_LABELS)
 
 
 @bp.get('/upload')
@@ -39,6 +42,14 @@ def upload():
 @roles_required()
 def search_page():
     return render_template('search.html', page='search')
+
+
+@bp.get('/kibana')
+@roles_required()
+def kibana_page():
+    base = current_app.extensions['sentinel_config'].kibana_public_url
+    return render_template('kibana.html', page='kibana', embed_url=dashboard_url(base, embed=True),
+                           open_url=dashboard_url(base), discover_url=discover_url(base))
 
 
 @bp.get('/api/docs')

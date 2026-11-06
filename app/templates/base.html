@@ -22,8 +22,9 @@
   <a class="nv {% if page == 'home' %}on{% endif %}" href="{{ url_for('web.home') }}">Accueil</a>
   <a class="nv {% if page == 'upload' %}on{% endif %}" href="{{ url_for('web.upload') }}">Envoi de fichiers</a>
   <a class="nv {% if page == 'search' %}on{% endif %}" href="{{ url_for('web.search_page') }}">Explorateur de logs</a>
+  <a class="nv {% if page == 'kibana' %}on{% endif %}" href="{{ url_for('web.kibana_page') }}">Dashboard Kibana</a>
   <a class="nv {% if page == 'docs' %}on{% endif %}" href="{{ url_for('web.api_docs') }}">API (Swagger)</a>
-  <div class="grp">À venir (S3+)</div>
+  <div class="grp">À venir (S4+)</div>
   <span class="nv soon" aria-disabled="true">Alertes &amp; incidents</span>
   <span class="nv soon" aria-disabled="true">Temps réel</span>
   <div class="me">

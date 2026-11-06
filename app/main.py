@@ -14,6 +14,7 @@ from pymongo import MongoClient
 from redis import Redis
 
 from app.config import Config
+from app.kibana import origin as kibana_origin
 from app.security import (ROLE_ADMIN, ROLE_ANALYST, ROLE_AUDITOR, ROLE_LABELS, RedisSessionInterface, check_csrf,
                           csrf_token, error_response, unauthorized)
 from app.stores import build_stores, ensure_indexes
@@ -85,7 +86,8 @@ def create_app(config=None, stores=None):
         response.headers.setdefault('Referrer-Policy', 'same-origin')
         response.headers.setdefault(
             'Content-Security-Policy',
-            "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'")
+            "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+            f"frame-src {kibana_origin(config.kibana_public_url)}; frame-ancestors 'none'")
         if request.path.startswith('/api/'):
             response.headers.setdefault('Cache-Control', 'no-store')
         return response

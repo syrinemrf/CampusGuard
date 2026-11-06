@@ -43,6 +43,7 @@ class Config:
     login_window_seconds: int = field(default_factory=lambda: _int('LOGIN_WINDOW_SECONDS', 300))
     search_cache_ttl: int = field(default_factory=lambda: _int('SEARCH_CACHE_TTL', 30))
     export_max_rows: int = field(default_factory=lambda: _int('EXPORT_MAX_ROWS', 5000))
+    kibana_public_url: str = _env('KIBANA_PUBLIC_URL', 'http://localhost:5601')
     api_rate_limit: int = field(default_factory=lambda: _int('API_RATE_LIMIT_PER_MIN', 300))
     ingest_stall_seconds: int = field(default_factory=lambda: _int('INGEST_STALL_SECONDS', 300))
     testing: bool = False
