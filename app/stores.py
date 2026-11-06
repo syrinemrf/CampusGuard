@@ -74,3 +74,4 @@ def ensure_indexes(db):
     db.saved_searches.create_index([('user_id', ASCENDING), ('created_at', DESCENDING)])
     db.audit_actions.create_index([('actor', ASCENDING), ('timestamp', DESCENDING)])
     db.audit_actions.create_index([('action', ASCENDING), ('timestamp', DESCENDING)])
+    db.dashboard_prefs.create_index([('username', ASCENDING)], unique=True)
