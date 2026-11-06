@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Erreur {{ status }} · Sentinel</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sentinel.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}"></head>
+<body><div class="lgn"><div class="cd">
+<h1 class="login-title">Erreur {{ status }}</h1><p>{{ message }}</p>
+<p><a class="btn" href="{{ url_for('web.home') }}">Retour à l’accueil</a></p>
+</div></div></body></html>

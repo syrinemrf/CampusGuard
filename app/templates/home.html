@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Accueil{% endblock %}
+{% block h1 %}Tableau de bord{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}" defer></script><script src="{{ url_for('static', filename='js/home.js') }}" defer></script>{% endblock %}
+{% block content %}
+{% if es_error %}<div class="alert err" role="alert">Elasticsearch indisponible : {{ es_error }}</div>{% endif %}
+<div class="g g4">
+  <div class="cd sh kp"><span>Logs indexés (total)</span><div class="row"><div><b>{% if stats %}{{ '{:,}'.format(stats.total).replace(',', ' ') }}{% else %}—{% endif %}</b></div></div></div>
+  <div class="cd sh kp"><span>Logs aujourd’hui (UTC)</span><div class="row"><div><b>{% if stats %}{{ '{:,}'.format(stats.today).replace(',', ' ') }}{% else %}—{% endif %}</b></div></div></div>
+  <div class="cd sh kp"><span>Logs ERROR / CRITICAL</span><div class="row"><div><b>{% if stats %}{{ '{:,}'.format(stats.errors).replace(',', ' ') }}{% else %}—{% endif %}</b></div></div></div>
+  <div class="cd sh kp"><span>Fichiers importés</span><div class="row"><div><b>{% if stats %}{{ stats.uploads }}{% else %}—{% endif %}</b></div></div></div>
+</div>
+<p class="sub">Chiffres réels lus dans Elasticsearch et MongoDB (mis en cache 30 s). Les données du laboratoire sont synthétiques ou importées par vos soins.</p>
+{% if stats and stats.total == 0 %}<div class="alert info">Aucun événement indexé pour le moment. <a href="{{ url_for('web.upload') }}">Importez un fichier</a> ou lancez le simulateur (voir README).</div>{% endif %}
+{% if stats %}<script type="application/json" id="chart-data">{{ stats|tojson }}</script>
+<div class="g g3">
+  <section class="cd"><h2>Événements dans le temps</h2><p class="sub" id="timeline-sub">Regroupement automatique par intervalle.</p><div class="chart-box"><canvas id="chart-timeline" role="img" aria-label="Courbe du nombre d’événements dans le temps"></canvas></div></section>
+  <section class="cd"><h2>Répartition par niveau</h2><p class="sub">Tous les événements indexés.</p><div class="chart-box"><canvas id="chart-levels" role="img" aria-label="Répartition des événements par niveau de log"></canvas></div></section>
+</div>
+<section class="cd"><h2>Services les plus actifs</h2><div class="chart-box short"><canvas id="chart-services" role="img" aria-label="Nombre d’événements par service"></canvas></div></section>
+{% endif %}
+<div class="g g2">
+  <section class="cd"><h2>Mes derniers imports</h2><p class="sub">Les 5 plus récents. <a href="{{ url_for('web.upload') }}">Envoyer un fichier</a></p>
+    {% if uploads %}<div class="tw"><table><thead><tr><th>Fichier</th><th>État</th><th>Lignes valides</th></tr></thead><tbody>
+    {% for u in uploads %}<tr><td>{{ u.original_name }}</td><td><span class="pl state-{{ u.state }}">{{ u.state_label }}</span></td><td>{{ u.stats.valid_rows if u.stats else '—' }}</td></tr>{% endfor %}
+    </tbody></table></div>{% else %}<p class="sub">Aucun import pour le moment.</p>{% endif %}</section>
+  <section class="cd"><h2>Dernières recherches</h2><p class="sub">Historique personnel (MongoDB). <a href="{{ url_for('web.search_page') }}">Explorateur de logs</a></p>
+    {% if history %}<ul class="plain">{% for h in history %}<li><a href="{{ url_for('web.search_page') }}?{{ h.filters|urlencode_filters }}">{{ h.filters.get('q') or 'Filtres : ' ~ (h.filters.keys()|join(', ')) }}</a> <small>{{ h.created_at[:16].replace('T', ' ') }} UTC</small></li>{% endfor %}</ul>
+    {% else %}<p class="sub">Aucune recherche enregistrée.</p>{% endif %}</section>
+</div>
+{% endblock %}

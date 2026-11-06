@@ -1,0 +1,53 @@
+"""Server-rendered pages (Jinja2). Data loading is done by the JSON API via small JS files."""
+from flask import Blueprint, current_app, render_template
+from flask_login import current_user
+
+from app.security import ROLE_ADMIN, ROLE_ANALYST, ROLE_LABELS, roles_required
+from app.services.search import SearchService
+from app.services.uploads import UploadService
+from app.stores import ElasticError
+
+bp = Blueprint('web', __name__)
+
+
+@bp.get('/')
+@roles_required()
+def home():
+    stores = current_app.extensions['sentinel_stores']
+    cfg = current_app.extensions['sentinel_config']
+    search = SearchService(stores.db, stores.redis, stores.es, cfg)
+    upload_service = UploadService(stores.db, stores.es, cfg)
+    stats, es_error = None, None
+    try:
+        stats = search.stats(upload_service.count_imported())
+    except ElasticError as exc:
+        es_error = str(exc)
+    return render_template('home.html', stats=stats, es_error=es_error,
+                           uploads=upload_service.list(current_user, limit=5),
+                           history=search.history(current_user, 5), page='home')
+
+
+@bp.get('/upload')
+@roles_required()
+def upload():
+    cfg = current_app.extensions['sentinel_config']
+    can_upload = current_user.role in (ROLE_ADMIN, ROLE_ANALYST)
+    return render_template('upload.html', page='upload', can_upload=can_upload, max_mb=cfg.max_upload_mb)
+
+
+@bp.get('/search')
+@roles_required()
+def search_page():
+    return render_template('search.html', page='search')
+
+
+@bp.get('/api/docs')
+@roles_required()
+def api_docs():
+    return render_template('docs.html', page='docs')
+
+
+@bp.get('/events/<event_id>')
+@roles_required()
+def event_page(event_id):
+    return render_template('event.html', page='search', event_id=event_id)

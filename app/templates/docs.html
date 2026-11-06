@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Documentation API{% endblock %}
+{% block h1 %}Documentation de l’API (OpenAPI / Swagger){% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='vendor/swagger-ui/swagger-ui.css') }}"><script src="{{ url_for('static', filename='vendor/swagger-ui/swagger-ui-bundle.js') }}" defer></script><script src="{{ url_for('static', filename='js/swagger-init.js') }}" defer></script>{% endblock %}
+{% block content %}
+<p class="sub">Spécification : <a href="{{ url_for('api.openapi') }}">/api/openapi.json</a>. Vous êtes connecté : « Try it out » utilise votre session (le jeton CSRF est ajouté automatiquement).</p>
+<div id="swagger" class="cd"></div>
+{% endblock %}

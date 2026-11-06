@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{% block title %}CampusGuard{% endblock %} · Sentinel</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sentinel.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<div class="app">
+<aside>
+  <div class="logo">
+    <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2l10 4v8c0 6-4.2 10.4-10 12C8.200 24.400 4 20 4 14V6z" fill="var(--ac)"/><path d="M9.500 14l3.200 3.200L18.500 11" fill="none" stroke="#fff" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Sentinel
+  </div>
+  <div class="grp">Navigation</div>
+  <a class="nv {% if page == 'home' %}on{% endif %}" href="{{ url_for('web.home') }}">Accueil</a>
+  <a class="nv {% if page == 'upload' %}on{% endif %}" href="{{ url_for('web.upload') }}">Envoi de fichiers</a>
+  <a class="nv {% if page == 'search' %}on{% endif %}" href="{{ url_for('web.search_page') }}">Explorateur de logs</a>
+  <a class="nv {% if page == 'docs' %}on{% endif %}" href="{{ url_for('web.api_docs') }}">API (Swagger)</a>
+  <div class="grp">À venir (S3+)</div>
+  <span class="nv soon" aria-disabled="true">Alertes &amp; incidents</span>
+  <span class="nv soon" aria-disabled="true">Temps réel</span>
+  <div class="me">
+    <div class="av" aria-hidden="true">{{ current_user.username[:1]|upper }}</div>
+    <div>{{ current_user.username }}<small>{{ ROLE_LABELS[current_user.role] }}</small></div>
+    <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="linkbtn" type="submit">Quitter</button>
+    </form>
+  </div>
+</aside>
+<main id="contenu">
+  <div class="top"><h1>{% block h1 %}{% endblock %}</h1><button class="btn" id="theme-toggle" type="button" aria-label="Changer de thème">Thème</button></div>
+  {% block content %}{% endblock %}
+  <footer class="foot">CampusGuard · Sentinel — projet académique ITBS (Mini-Projet ELK), encadrant M. Mohamed Najeh Issaoui · laboratoire local, données fictives ou synthétiques</footer>
+</main>
+</div>
+</body>
+</html>

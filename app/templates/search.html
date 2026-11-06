@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Explorateur de logs{% endblock %}
+{% block h1 %}Explorateur de logs{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='js/search.js') }}" defer></script>{% endblock %}
+{% block content %}
+<section class="cd">
+  <form id="search-form" class="filters" autocomplete="off">
+    <div class="field wide"><label for="q">Texte libre (message)</label><input class="in" id="q" name="q" maxlength="256" placeholder="ex. failed password"></div>
+    <div class="field"><label for="start">Du (UTC)</label><input class="in" id="start" name="start" type="date"></div>
+    <div class="field"><label for="end">Au (UTC)</label><input class="in" id="end" name="end" type="date"></div>
+    <div class="field"><label for="level">Niveau</label><select class="in" id="level" name="level"><option value="">Tous</option></select></div>
+    <div class="field"><label for="service">Service</label><select class="in" id="service" name="service"><option value="">Tous</option></select></div>
+    <div class="field"><label for="outcome">Résultat</label><select class="in" id="outcome" name="outcome"><option value="">Tous</option><option>success</option><option>failure</option><option>unknown</option></select></div>
+    <div class="field"><label for="ip">IP / CIDR</label><input class="in" id="ip" name="ip" placeholder="203.0.113.50"></div>
+    <div class="field"><label for="user">Utilisateur</label><input class="in" id="user" name="user"></div>
+    <input type="hidden" id="sort" name="sort" value="desc"><input type="hidden" id="sort_by" name="sort_by" value="timestamp">
+    <input type="hidden" id="upload_id" name="upload_id">
+    <div class="actions"><button class="btn p" type="submit">Rechercher</button><button class="btn" type="reset" id="reset-btn">Réinitialiser</button><a class="btn" id="export-link" href="#">Exporter CSV</a></div>
+  </form>
+  <div id="history" class="chips" aria-label="Recherches récentes"></div>
+</section>
+<section class="cd">
+  <div id="status" class="sub" aria-live="polite">Lancez une recherche.</div>
+  <div class="tw"><table id="results"><thead><tr><th aria-sort="none"><button class="thbtn" type="button" data-sort="timestamp">Date / heure (UTC)</button></th><th aria-sort="none"><button class="thbtn" type="button" data-sort="level">Niveau</button></th><th aria-sort="none"><button class="thbtn" type="button" data-sort="service">Service</button></th><th>IP</th><th>Utilisateur</th><th>Résultat</th><th>Message</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
+  <nav class="pager" aria-label="Pagination"><button class="btn s" id="prev" type="button">Précédent</button><span id="page-info"></span><button class="btn s" id="next" type="button">Suivant</button></nav>
+</section>
+{% endblock %}
