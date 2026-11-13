@@ -24,8 +24,11 @@
   <a class="nv {% if page == 'search' %}on{% endif %}" href="{{ url_for('web.search_page') }}">Explorateur de logs</a>
   <a class="nv {% if page == 'kibana' %}on{% endif %}" href="{{ url_for('web.kibana_page') }}">Dashboard Kibana</a>
   <a class="nv {% if page == 'docs' %}on{% endif %}" href="{{ url_for('web.api_docs') }}">API (Swagger)</a>
-  <div class="grp">À venir (S4+)</div>
-  <span class="nv soon" aria-disabled="true">Alertes &amp; incidents</span>
+  <div class="grp">Détection</div>
+  <a class="nv {% if page == 'alerts' %}on{% endif %}" href="{{ url_for('alerts.alerts_page') }}">Alertes &amp; incidents <span class="badge hidden" id="nav-alert-badge" aria-label="alertes ouvertes"></span></a>
+  <a class="nv {% if page == 'rules' %}on{% endif %}" href="{{ url_for('alerts.rules_page') }}">Règles de détection</a>
+  <button class="nv linkbtn hidden" type="button" id="notify-toggle">Activer les notifications</button>
+  <div class="grp">À venir (S5)</div>
   <span class="nv soon" aria-disabled="true">Temps réel</span>
   <div class="me">
     <div class="av" aria-hidden="true" title="{{ current_user.username }} · {{ ROLE_LABELS[current_user.role] }}">{{ current_user.username[:1]|upper }}</div>

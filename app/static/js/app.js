@@ -29,7 +29,7 @@ window.Sentinel = (function () {
     return { ok: response.ok, status: response.status, data: data || {} };
   }
 
-  const fmtDate = (iso) => (iso ? iso.replace('T', ' ').replace(/\.\d+Z?$/, '').replace('Z', '') : '—');
+  const fmtDate = (iso) => (iso ? iso.replace('T', ' ').replace(/(\.\d+)?(Z|[+-]00:00)?$/, '') : '—');
   const fmtBytes = (n) => (n < 1024 ? n + ' o' : n < 1048576 ? (n / 1024).toFixed(1) + ' Ko' : (n / 1048576).toFixed(1) + ' Mo');
 
   // Theme (per-viewer convenience only; works without storage).
@@ -53,6 +53,41 @@ window.Sentinel = (function () {
       ['Import', s.upload_id], ['Index', data.index], ['Identifiant', data.id]]
       .flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v || '—' })]);
   }
+
+  /* Visual alerts on every page: badge in the navigation, count in the tab title, optional desktop notification.
+     Polls /api/alerts/summary every 20 s (≈ 3 requests/min, far below the API rate limit). */
+  function watchAlerts() {
+    const badge = document.getElementById('nav-alert-badge');
+    if (!badge) return;
+    const baseTitle = document.title;
+    let lastSeen = null;
+    try { lastSeen = sessionStorage.getItem('sentinel-last-alert'); } catch (e) { /* ignore */ }
+    const notifyBtn = document.getElementById('notify-toggle');
+    if (notifyBtn && 'Notification' in window && Notification.permission === 'default') {
+      notifyBtn.classList.remove('hidden');
+      notifyBtn.addEventListener('click', () => Notification.requestPermission().then(() => notifyBtn.classList.add('hidden')));
+    }
+    async function tick() {
+      const { ok, data } = await api('/api/alerts/summary');
+      if (!ok) return;
+      const n = data.open_total || 0;
+      badge.textContent = n;
+      badge.classList.toggle('hidden', n === 0);
+      badge.classList.toggle('crit', (data.open_by_severity || {}).critical > 0);
+      document.title = (n ? '(' + n + ') ' : '') + baseTitle;
+      const latest = data.latest_open;
+      if (latest && latest.id !== lastSeen) {
+        if (lastSeen !== null && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('Sentinel · ' + latest.severity_label + ' : ' + latest.rule_name, { body: latest.message, tag: latest.id });
+        }
+        lastSeen = latest.id;
+        try { sessionStorage.setItem('sentinel-last-alert', lastSeen); } catch (e) { /* ignore */ }
+      }
+    }
+    tick();
+    setInterval(tick, 20000);
+  }
+  document.addEventListener('DOMContentLoaded', watchAlerts);
 
   return { csrf, el, api, fmtDate, fmtBytes, eventRows };
 })();

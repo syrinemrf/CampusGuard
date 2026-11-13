@@ -57,7 +57,9 @@ def create_app(config=None, stores=None):
     from app.views_auth import bp as auth_bp
     from app.views_api import bp as api_bp, v1 as v1_bp
     from app.views_web import bp as web_bp
+    from app.views_alerts import bp as alerts_bp
     app.register_blueprint(auth_bp)
+    app.register_blueprint(alerts_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(v1_bp)
     app.register_blueprint(web_bp)
@@ -70,6 +72,9 @@ def create_app(config=None, stores=None):
     def _prepare():
         if request.endpoint in {'health', 'ready', 'static'}:
             return None
+        blocked = blocked_response(app, config)
+        if blocked:
+            return blocked
         if not app.extensions['sentinel_indexes_ready']:
             try:
                 ensure_indexes(app.extensions['sentinel_stores'].db)
@@ -122,6 +127,28 @@ def sparkline_points(values, width=120, height=34, pad=3):
     top = max(values) or 1
     step = (width - 2 * pad) / (len(values) - 1)
     return ' '.join(f'{pad + i * step:.1f},{height - pad - (v / top) * (height - 2 * pad):.1f}' for i, v in enumerate(values))
+
+
+def blocked_response(app, config):
+    """SOAR-lite enforcement: an address in the Redis blocklist gets 403 everywhere (fails open if Redis is down)."""
+    from app.alerting.blocklist import Blocklist
+    ip = request.remote_addr or ''
+    try:
+        record = Blocklist(app.extensions['sentinel_stores'].redis, app.extensions['sentinel_stores'].db, config).get(ip)
+    except Exception:  # noqa: BLE001 - never lock everybody out because Redis is unavailable
+        log.warning('blocklist check skipped (Redis unavailable)')
+        return None
+    if not record:
+        return None
+    until = record['until'][:16].replace('T', ' ')
+    from flask import make_response
+    body, status = error_response(
+        403, 'ip_blocked', f"Votre adresse IP {ip} est bloquée jusqu’à {until} UTC ({record['reason']}). "
+                           "Ce blocage est temporaire ; un administrateur peut le lever.",
+        until=record['until'], rule=record.get('rule'))
+    response = make_response(body, status)
+    response.headers['Retry-After'] = str(record['remaining_seconds'])
+    return response, status
 
 
 def rate_limit(app, config):
@@ -208,6 +235,24 @@ def register_cli(app):
         for username, role, password in created:
             shown = password if password else '(défini via la variable d’environnement)'
             click.echo(f'Compte créé : {username} [{role}] mot de passe : {shown}')
+
+    @app.cli.command('seed-rules')
+    def seed_rules():
+        """Create the default scenario-C alert rules that do not exist yet."""
+        from app.alerting.rules import RuleStore
+        db = app.extensions['sentinel_stores'].db
+        ensure_indexes(db)
+        created = RuleStore(db).seed_defaults()
+        click.echo('Règles créées : ' + (', '.join(created) if created else 'aucune (déjà présentes)'))
+
+    @app.cli.command('unblock-ip')
+    @click.argument('ip')
+    def unblock_ip(ip):
+        """Lift a block immediately (recovery if your own address was blocked during a demo)."""
+        from app.alerting.blocklist import Blocklist
+        stores = app.extensions['sentinel_stores']
+        done = Blocklist(stores.redis, stores.db, app.extensions['sentinel_config']).unblock(ip, 'cli')
+        click.echo(f'{ip} débloquée.' if done else f'{ip} n’était pas bloquée.')
 
     @app.cli.command('create-user')
     @click.argument('username')

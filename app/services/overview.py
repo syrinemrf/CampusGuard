@@ -276,6 +276,30 @@ class OverviewService:
         return [{'id': str(d['_id']), 'name': d.get('original_name'), 'state': d.get('state'),
                  'by': d.get('uploaded_by')} for d in docs]
 
+    def alerting(self):
+        """S4: alerts to handle, blocked IPs and the worker heartbeat (never fatal for the home page)."""
+        from app.alerting.blocklist import Blocklist
+        from app.alerting.engine import HEARTBEAT_KEY
+        out = {'alerts_open': [], 'alerts_open_by_severity': {}, 'blocked_ips': []}
+        try:
+            docs = self.db.alerts.find({'status': {'$in': ['open', 'acknowledged']}},
+                                       {'rule_name': 1, 'severity': 1, 'group': 1, 'status': 1, 'triggered_at': 1, 'count': 1})
+            docs = sorted(docs, key=lambda d: (['critical', 'high', 'medium', 'low'].index(d.get('severity', 'low')),
+                                               -d['triggered_at'].timestamp()))
+            for d in docs:
+                out['alerts_open_by_severity'][d['severity']] = out['alerts_open_by_severity'].get(d['severity'], 0) + 1
+            out['alerts_open'] = [{'id': d['_id'], 'rule_name': d['rule_name'], 'severity': d['severity'], 'group': d.get('group'),
+                                   'status': d['status'], 'count': d.get('count')} for d in docs[:5]]
+            out['alerts_open_total'] = len(docs)
+            out['blocked_ips'] = [b['ip'] for b in Blocklist(self.redis, self.db, self.cfg).active()]
+        except Exception:  # noqa: BLE001
+            log.warning('alerting summary unavailable on the home page')
+        try:
+            out['worker'] = json.loads(self.redis.get(HEARTBEAT_KEY) or 'null')
+        except Exception:  # noqa: BLE001
+            out['worker'] = None
+        return out
+
     # ------------------------------------------------------------ page model
     def build(self, period):
         if period not in PERIODS:
@@ -289,6 +313,7 @@ class OverviewService:
         except ElasticError as exc:
             result['es_error'] = str(exc)
         result['health'] = self.health(result['es_error'] is None)
+        result.update(self.alerting())
         result['rejected'] = count_rejected(self.cfg.rejected_dir)
         result['rejected_total'] = sum(r['lines'] for r in result['rejected'])
         try:

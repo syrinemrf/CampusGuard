@@ -15,7 +15,7 @@ _SID_RE = re.compile(r'^[A-Za-z0-9_-]{43}$')
 ROLE_ADMIN, ROLE_ANALYST, ROLE_AUDITOR = 'admin', 'analyst', 'auditor'
 ROLES = (ROLE_ADMIN, ROLE_ANALYST, ROLE_AUDITOR)
 ROLE_LABELS = {ROLE_ADMIN: 'Administrateur', ROLE_ANALYST: 'Analyste SOC', ROLE_AUDITOR: 'Auditeur'}
-CSRF_EXEMPT_ENDPOINTS = {'auth.api_login'}
+CSRF_EXEMPT_ENDPOINTS = {'auth.api_login', 'alerts.demo_webhook'}  # demo webhook: token in the URL, no cookie
 
 
 class RedisSession(CallbackDict, SessionMixin):

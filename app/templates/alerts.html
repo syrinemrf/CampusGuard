@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Alertes & incidents{% endblock %}
+{% block h1 %}Alertes &amp; incidents{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='js/alerts.js') }}" defer></script>{% endblock %}
+{% set SEV = {'low': 'lo', 'medium': 'me2', 'high': 'hi', 'critical': 'cr'} %}
+{% macro age(iso) %}{{ (iso or '—')[:16].replace('T', ' ') }}{% endmacro %}
+{% macro duration(s) -%}
+  {%- if s is none -%}—{%- elif s < 3600 -%}{{ (s / 60)|round(0)|int }} min{%- elif s < 172800 -%}{{ (s / 3600)|round(1) }} h{%- else -%}{{ (s / 86400)|round(1) }} j{%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div id="alerts-app" data-can-act="{{ 'true' if can_act else 'false' }}"></div>
+<div class="toolbar">
+  <p class="sub">{% if heartbeat %}<i class="dot ok" aria-hidden="true"></i>Worker d’alertes actif · dernier cycle {{ age(heartbeat.at) }} UTC · {{ heartbeat.rules }} règle(s) évaluée(s) en {{ heartbeat.duration_ms }} ms
+    {% else %}<i class="dot err" aria-hidden="true"></i>Worker d’alertes inactif : aucun cycle récent (<code>docker compose ps alert-worker</code>).{% endif %}</p>
+  <div class="actions">
+    <a class="btn s" href="{{ url_for('alerts.rules_page') }}">Règles de détection</a>
+    {% if is_admin %}<button class="btn s p" type="button" id="run-now">Évaluer les règles maintenant</button>{% endif %}
+  </div>
+</div>
+<div id="alerts-msg" class="alert hidden" role="status"></div>
+
+<div class="g g4">
+  <div class="cd sh kp"><span>Alertes ouvertes</span><div class="row"><div><b>{{ stats.open_total }}</b>
+    <em>{% for key, label in severities.items() if stats.open_by_severity[key] %}<span class="pl {{ SEV[key] }}">{{ stats.open_by_severity[key] }} {{ label|lower }}</span> {% else %}<span class="mu">aucune</span>{% endfor %}</em></div></div></div>
+  <div class="cd sh kp"><span>Alertes levées aujourd’hui (UTC)</span><div class="row"><div><b>{{ stats.today }}</b><em class="mu">{{ stats.total }} sur {{ stats.days }} jours</em></div></div></div>
+  <div class="cd sh kp"><span>MTTR (temps moyen de résolution)</span><div class="row"><div><b>{{ duration(stats.mttr_seconds) }}</b><em class="mu">{{ stats.resolved }} alerte(s) résolue(s) sur {{ stats.days }} j</em></div></div></div>
+  <div class="cd sh kp"><span>IP bloquées en ce moment</span><div class="row"><div><b>{{ blocked|length }}</b><em class="mu">blocage local, {{ block_ttl }} min par défaut</em></div></div></div>
+</div>
+
+<section class="cd" id="active">
+  <h2>Alertes actives</h2>
+  <p class="sub">Ouvertes ou prises en compte. Une même attaque (règle + IP/compte) reste <b>une seule</b> alerte tant qu’elle n’est pas résolue : seules les occurrences augmentent (pas de nouvelle notification).</p>
+  {% if active %}<div class="tw"><table class="alerts-table"><thead><tr><th>Gravité</th><th>Règle</th><th>Concerne</th><th>Événements</th><th>Période (UTC)</th><th>Notifications / réponse</th><th>État et actions</th></tr></thead><tbody>
+  {% for a in active %}<tr id="alert-{{ a.id }}">
+    <td><span class="pl {{ SEV[a.severity] }}">{{ a.severity_label }}</span></td>
+    <td class="msg"><b>{{ a.rule_name }}</b><br><small class="mu">{{ a.message }}</small></td>
+    <td class="mono">{% if a.group_field %}<a href="{{ a.search_url }}">{{ a.group }}</a>{% else %}—{% endif %}</td>
+    <td>{{ a.count }}{% if a.occurrences > 1 %}<br><small class="mu">vu {{ a.occurrences }} fois</small>{% endif %}</td>
+    <td class="when">{{ age(a.first_seen) }}<br><small class="mu">→ {{ age(a.last_seen) }}</small></td>
+    <td>{% for n in a.notifications %}<span class="pl {{ 'ok' if n.status == 'sent' else ('mu' if n.status == 'skipped' else 'cr') }}" title="{{ n.error or '' }}">{{ n.channel }} : {{ {'sent': 'envoyé', 'failed': 'échec', 'skipped': 'non configuré'}[n.status] }}{% if n.attempts > 1 %} ({{ n.attempts }} essais){% endif %}</span> {% endfor %}
+      {% if a.response and a.response.until %}<br><span class="pl cr">IP bloquée → {{ age(a.response.until) }}</span>{% elif a.response and a.response.error %}<br><span class="pl mu" title="{{ a.response.error }}">blocage refusé</span>{% endif %}</td>
+    <td><span class="pl {{ 'ac' if a.status == 'acknowledged' else 'me2' }}">{{ a.status_label }}</span>{% if a.acknowledged_by %}<br><small class="mu">par {{ a.acknowledged_by }}</small>{% endif %}
+      <div class="row-actions">{% if can_act %}{% if a.status == 'open' %}<button class="btn s" type="button" data-ack="{{ a.id }}">Prendre en compte</button> {% endif %}<button class="btn s p" type="button" data-resolve="{{ a.id }}">Résoudre</button>{% endif %}</div></td>
+  </tr>{% endfor %}
+  </tbody></table></div>
+  {% else %}<p class="sub">Aucune alerte active. Le worker évalue les règles toutes les 30 s.</p>{% endif %}
+</section>
+
+<div class="g g21">
+  <section class="cd">
+    <h2>Alertes par jour ({{ stats.days }} derniers jours)</h2>
+    {% set peak = (stats.per_day|map(attribute='count')|max) or 1 %}
+    <div class="daybars" role="img" aria-label="Nombre d’alertes par jour">
+      {% for d in stats.per_day %}<div class="daybar" title="{{ d.day }} : {{ d.count }} alerte(s)"><i data-h="{{ (100 * d.count / peak)|round|int }}"></i><small>{{ d.day[8:10] }}</small></div>{% endfor %}
+    </div>
+  </section>
+  <section class="cd">
+    <h2>Top 10 des règles déclenchées</h2>
+    {% if stats.top_rules %}<ol class="toprules">{% for r in stats.top_rules %}<li><i>{{ loop.index }}.</i><span>{{ r.rule_name }}</span><b>{{ r.count }}</b></li>{% endfor %}</ol>
+    {% else %}<p class="sub">Aucune alerte sur la période.</p>{% endif %}
+  </section>
+</div>
+
+<section class="cd" id="blocklist">
+  <h2>IP bloquées (réponse automatique « SOAR-lite »)</h2>
+  <p class="sub">Effet <b>local uniquement</b> : l’application CampusGuard (service de laboratoire) répond 403 à ces adresses jusqu’à expiration.
+    Aucune règle de pare-feu, aucune action réseau. Chaque blocage et déblocage est audité.</p>
+  {% if blocked %}<div class="tw"><table><thead><tr><th>IP</th><th>Motif</th><th>Par</th><th>Jusqu’à (UTC)</th><th>Reste</th><th></th></tr></thead><tbody>
+    {% for b in blocked %}<tr><td class="mono">{{ b.ip }}</td><td>{{ b.reason }}</td><td>{{ b.by }}</td><td>{{ age(b.until) }}</td><td>{{ duration(b.remaining_seconds) }}</td>
+      <td>{% if is_admin %}<button class="btn s" type="button" data-unblock="{{ b.ip }}">Débloquer</button>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<p class="sub">Aucune IP bloquée actuellement.</p>{% endif %}
+  {% if is_admin %}<form id="block-form" class="fl" autocomplete="off">
+    <label class="visually-hidden" for="block-ip">IP à bloquer</label><input class="in" id="block-ip" name="ip" placeholder="IP à bloquer (ex. 203.0.113.9)" required>
+    <label class="visually-hidden" for="block-min">Durée en minutes</label><input class="in" id="block-min" name="minutes" type="number" min="1" max="1440" value="{{ block_ttl }}">
+    <label class="visually-hidden" for="block-reason">Motif</label><input class="in w" id="block-reason" name="reason" placeholder="Motif (audité)">
+    <button class="btn" type="submit">Bloquer manuellement</button>
+  </form>{% endif %}
+  {% if block_history %}<details><summary>Historique des blocages</summary><div class="tw"><table class="compact"><thead><tr><th>Date (UTC)</th><th>Action</th><th>IP</th><th>Par</th><th>Motif</th></tr></thead><tbody>
+    {% for h in block_history %}<tr><td>{{ age(h.at) }}</td><td>{{ 'blocage' if h.action == 'block' else 'déblocage' }}</td><td class="mono">{{ h.ip }}</td><td>{{ h.by }}</td><td>{{ h.reason }}</td></tr>{% endfor %}
+  </tbody></table></div></details>{% endif %}
+</section>
+
+<section class="cd" id="history">
+  <h2>Historique des alertes résolues</h2>
+  {% if history %}<div class="tw"><table><thead><tr><th>Gravité</th><th>Règle</th><th>Concerne</th><th>Levée (UTC)</th><th>Résolue par</th><th>Délai</th><th>Note</th></tr></thead><tbody>
+    {% for a in history %}<tr id="alert-{{ a.id }}"><td><span class="pl {{ SEV[a.severity] }}">{{ a.severity_label }}</span></td><td>{{ a.rule_name }}</td><td class="mono">{{ a.group }}</td>
+      <td>{{ age(a.triggered_at) }}</td><td>{{ a.resolved_by }}</td><td>{{ duration(a.time_to_resolve_s) }}</td><td class="msg">{{ a.resolution_note or '—' }}</td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<p class="sub">Aucune alerte résolue pour le moment.</p>{% endif %}
+</section>
+
+<dialog id="resolve-dialog" class="modal" aria-labelledby="resolve-title">
+  <form id="resolve-form" method="dialog">
+    <div class="modal-h"><h2 id="resolve-title">Résoudre l’alerte</h2><button class="btn s" type="button" id="resolve-cancel">Annuler</button></div>
+    <div class="modal-b">
+      <label for="resolve-note">Note de résolution (auditée, visible dans l’historique)</label>
+      <textarea class="in area" id="resolve-note" maxlength="500" rows="4" placeholder="ex. IP de scan bloquée, aucun compte compromis."></textarea>
+      <div class="actions"><button class="btn p" type="submit">Marquer comme résolue</button></div>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

@@ -48,15 +48,25 @@
 </div>
 {% endif %}
 
+{% if widgets.alerts %}{% set SEV = {'low': 'lo', 'medium': 'me2', 'high': 'hi', 'critical': 'cr'} %}{% set SEVL = {'low': 'faible', 'medium': 'moyenne', 'high': 'haute', 'critical': 'critique'} %}
+<section class="cd alerts-strip {% if ov.alerts_open %}has{% endif %}">
+  <div class="strip-h"><h2>Alertes à traiter</h2>
+    <span>{% for key in ['critical', 'high', 'medium', 'low'] if ov.alerts_open_by_severity.get(key) %}<span class="pl {{ SEV[key] }}">{{ ov.alerts_open_by_severity[key] }} {{ SEVL[key] }}</span> {% else %}<span class="pl ok">aucune alerte ouverte</span>{% endfor %}</span>
+    <a class="btn s" href="{{ url_for('alerts.alerts_page') }}">Ouvrir les alertes</a></div>
+  {% if ov.alerts_open %}<ul class="plain">{% for a in ov.alerts_open %}<li><span class="pl {{ SEV[a.severity] }}">{{ SEVL[a.severity] }}</span>
+    <a href="{{ url_for('alerts.alerts_page') }}#alert-{{ a.id }}">{{ a.rule_name }}</a> — <span class="mono">{{ a.group }}</span> <small class="mu">({{ a.count }} évén.{{ ', prise en compte' if a.status == 'acknowledged' }})</small></li>{% endfor %}
+    {% if ov.alerts_open_total > 5 %}<li class="sub">… et {{ ov.alerts_open_total - 5 }} autre(s).</li>{% endif %}</ul>{% endif %}
+</section>{% endif %}
+
 {% if widgets.priorities or widgets.health %}<div class="g g21">
   {% if widgets.priorities %}<section class="cd">
     <h2>IP à examiner en priorité</h2>
     <p class="sub">Les 5 adresses avec le plus d’échecs sur {{ a.period_label if a else 'la période' }}. Une IP qui vise plusieurs comptes évoque du <i>credential stuffing</i> ; beaucoup d’échecs sur un seul compte, de la force brute.</p>
-    {% if a and a.top_ips %}<div class="tw"><table><thead><tr><th>IP source</th><th>Échecs</th><th>Comptes visés</th><th>Pays (GeoIP)</th><th>Dernier échec (UTC)</th><th></th></tr></thead><tbody>
+    {% if a and a.top_ips %}<div class="tw"><table><thead><tr><th>IP source</th><th>Échecs</th><th>Comptes visés</th><th>Pays</th><th>Dernier (UTC)</th><th></th></tr></thead><tbody>
       {% for ip in a.top_ips %}<tr>
-        <td class="mono">{{ ip.ip }}</td><td><b>{{ ip.failures }}</b></td>
+        <td class="mono">{{ ip.ip }}{% if ip.ip in ov.blocked_ips %} <span class="pl cr">bloquée</span>{% endif %}</td><td><b>{{ ip.failures }}</b></td>
         <td>{% if ip.users > 1 %}<span class="pl hi">{{ ip.users }} comptes</span>{% else %}{{ ip.users }}{% endif %}</td>
-        <td>{{ ip.country or '—' }}</td><td>{{ (ip.last or '—')[:16].replace('T', ' ') }}</td>
+        <td>{{ ip.country or '—' }}</td><td class="nowrap">{{ (ip.last or '—')[5:16].replace('T', ' ') }}</td>
         <td><a class="btn s" href="{{ url_for('web.search_page') }}?ip={{ ip.ip|urlencode }}&amp;outcome=failure">Examiner</a></td></tr>{% endfor %}
     </tbody></table></div>
     {% elif a %}<p class="sub">Aucun échec d’authentification sur la période. 👍</p>{% endif %}
@@ -69,6 +79,7 @@
       <li><i class="dot {{ 'ok' if state == 'ok' else ('warn' if state == 'degraded' else 'err') }}" aria-hidden="true"></i>{{ service_names.get(name, name) }}
         <span class="pl {{ 'ok' if state == 'ok' else ('me2' if state == 'degraded' else 'cr') }}">{{ {'ok': 'opérationnel', 'degraded': 'dégradé', 'error': 'injoignable'}[state] }}</span></li>{% endfor %}
     </ul>
+    <p class="sub small">Worker d’alertes : {% if ov.worker %}<span class="pl ok">actif</span> dernier cycle {{ ov.worker.at[11:19] }} UTC ({{ ov.worker.rules }} règles){% else %}<span class="pl cr">aucun cycle récent</span>{% endif %}</p>
     {% if ov.health.pipelines %}<h3>Pipelines Logstash (depuis le démarrage)</h3>
     <div class="tw"><table class="compact"><thead><tr><th>Pipeline</th><th>Reçus</th><th>Indexés / écrits</th></tr></thead><tbody>
       {% for p in ov.health.pipelines %}<tr><td>{{ p.name }}</td><td>{{ p['in'] }}</td><td>{{ p.out }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}

@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 
 from app.services.overview import DEFAULT_PERIOD, PERIODS
 
-WIDGETS = ('kpis', 'priorities', 'health', 'imports', 'searches')
+WIDGETS = ('kpis', 'alerts', 'priorities', 'health', 'imports', 'searches')
 WIDGET_LABELS = {
-    'kpis': 'Indicateurs d’authentification', 'priorities': 'IP à examiner en priorité',
+    'kpis': 'Indicateurs d’authentification', 'alerts': 'Alertes à traiter', 'priorities': 'IP à examiner en priorité',
     'health': 'Santé de la plateforme et de l’ingestion', 'imports': 'Mes derniers imports',
     'searches': 'Mes dernières recherches',
 }

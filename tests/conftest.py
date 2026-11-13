@@ -22,6 +22,7 @@ class FakeES:
         self.down = False
         self.response = {'took': 3, 'hits': {'total': {'value': 0, 'relation': 'eq'}, 'hits': []}}
         self.responses = None  # optional list consumed one per search call
+        self.indexed = []
 
     def search(self, index, body):
         if self.down:
@@ -30,6 +31,12 @@ class FakeES:
         if self.responses:
             return self.responses.pop(0)
         return self.response
+
+    def index(self, index, doc_id, doc):
+        if self.down:
+            raise ElasticError('Elasticsearch injoignable')
+        self.indexed.append((index, doc_id, doc))
+        return True
 
     def count(self, index, query):
         if self.down:
@@ -99,6 +106,10 @@ class Session:
     def post(self, url, **kw):
         kw['headers'] = self._h(kw.get('headers'))
         return self.client.post(url, **kw)
+
+    def put(self, url, **kw):
+        kw['headers'] = self._h(kw.get('headers'))
+        return self.client.put(url, **kw)
 
     def delete(self, url, **kw):
         kw['headers'] = self._h(kw.get('headers'))

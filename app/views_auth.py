@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from flask_login import current_user, login_user, logout_user
 
 from app.security import LoginThrottle, ROLE_LABELS, csrf_token, error_response, roles_required
+from app.services.auth_events import build_event, ship
 from app.services.users import UserStore, record_audit
 
 bp = Blueprint('auth', __name__)
@@ -35,11 +36,13 @@ def _attempt(username, password):
     wait = throttle.retry_after(ip, username)
     if wait:
         record_audit(stores.db, username or None, 'login_blocked', ip=ip, reason='trop de tentatives')
+        ship(current_app, build_event('login_blocked', 'failure', ip, username, 'trop de tentatives'))
         return None, 'too_many_attempts', wait
     user = users.authenticate(username, password)
     if user is None:
         throttle.failure(ip, username)
         record_audit(stores.db, username or None, 'login_failure', ip=ip)  # never the attempted password (BR06)
+        ship(current_app, build_event('login', 'failure', ip, username))
         return None, 'invalid_credentials', 0
     throttle.success(ip, username)
     session.clear()
@@ -47,6 +50,7 @@ def _attempt(username, password):
     login_user(user)
     csrf_token()
     record_audit(stores.db, user.username, 'login_success', ip=ip)
+    ship(current_app, build_event('login', 'success', ip, user.username))
     return user, None, 0
 
 

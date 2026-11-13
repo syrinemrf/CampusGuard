@@ -46,6 +46,16 @@ class ElasticClient:
     def search(self, index, body):
         return self._post(f'/{index}/_search', body)
 
+    def index(self, index, doc_id, doc):
+        """Create or replace one document (used for the S4 alerts index ``sentinel-alerts-*``)."""
+        try:
+            response = self.http.put(f'{self.base_url}/{index}/_doc/{doc_id}', json=doc, timeout=self.timeout)
+        except requests.RequestException as exc:
+            raise ElasticError(f'Elasticsearch injoignable : {exc.__class__.__name__}') from exc
+        if response.status_code >= 400:
+            raise ElasticError(f'Indexation refusée par Elasticsearch (HTTP {response.status_code}).')
+        return True
+
     def count(self, index, query):
         return int(self._post(f'/{index}/_count', {'query': query}).get('count', 0))
 
@@ -75,3 +85,8 @@ def ensure_indexes(db):
     db.audit_actions.create_index([('actor', ASCENDING), ('timestamp', DESCENDING)])
     db.audit_actions.create_index([('action', ASCENDING), ('timestamp', DESCENDING)])
     db.dashboard_prefs.create_index([('username', ASCENDING)], unique=True)
+    # S4 — alerting
+    db.alerts.create_index([('fingerprint', ASCENDING), ('status', ASCENDING)])
+    db.alerts.create_index([('status', ASCENDING), ('triggered_at', DESCENDING)])
+    db.alerts.create_index([('rule_id', ASCENDING), ('triggered_at', DESCENDING)])
+    db.ip_blocks.create_index([('ip', ASCENDING), ('at', DESCENDING)])

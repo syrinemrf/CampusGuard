@@ -143,6 +143,18 @@ services:
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
       SEED_ANALYST_PASSWORD: ${SEED_ANALYST_PASSWORD:-}
       SEED_AUDITOR_PASSWORD: ${SEED_AUDITOR_PASSWORD:-}
+      # S4 — alerting (the webapp shows / acts on alerts; the alert-worker container evaluates the rules)
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8000}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-soc@campusguard.lab}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-http://webapp:8000/hooks/demo/${WEBHOOK_DEMO_TOKEN:-lab-demo-token}}
+      ALERT_WEBHOOK_FORMAT: ${ALERT_WEBHOOK_FORMAT:-generic}
+      WEBHOOK_DEMO_TOKEN: ${WEBHOOK_DEMO_TOKEN:-lab-demo-token}
+      BLOCK_TTL_MINUTES: ${BLOCK_TTL_MINUTES:-15}
+      BLOCK_NEVER: ${BLOCK_NEVER:-127.0.0.1/32,::1/128}
+      LOGSTASH_HTTP_URL: http://logstash:8088
+      SHIP_AUTH_EVENTS: ${SHIP_AUTH_EVENTS:-true}
     volumes:
       - uploads:/data/uploads
       - ./datasets/rejected:/data/rejected:ro
@@ -158,6 +170,48 @@ services:
       timeout: 5s
       retries: 15
       start_period: 10s
+    networks: [sentinel]
+  alert-worker:
+    # S4 — separate process that evaluates the alert rules every ALERT_INTERVAL_SECONDS (same image as the webapp).
+    build: {context: ., dockerfile: app/Dockerfile}
+    command: ["python", "-m", "app.alerting.worker"]
+    mem_limit: 160m
+    environment:
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      MONGO_DB: ${MONGO_DB:-sentinel}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      ALERT_INTERVAL_SECONDS: ${ALERT_INTERVAL_SECONDS:-30}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8000}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-sentinel@campusguard.lab}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-soc@campusguard.lab}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-http://webapp:8000/hooks/demo/${WEBHOOK_DEMO_TOKEN:-lab-demo-token}}
+      ALERT_WEBHOOK_FORMAT: ${ALERT_WEBHOOK_FORMAT:-generic}
+      ALERT_WEBHOOK_TEMPLATE: ${ALERT_WEBHOOK_TEMPLATE:-}
+      NOTIFY_RETRIES: ${NOTIFY_RETRIES:-3}
+      BLOCK_TTL_MINUTES: ${BLOCK_TTL_MINUTES:-15}
+      BLOCK_NEVER: ${BLOCK_NEVER:-127.0.0.1/32,::1/128}
+    depends_on:
+      elasticsearch: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.alerting.worker", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks: [sentinel]
+  mailpit:
+    # S4 — local SMTP catcher for the alert e-mails (web UI http://localhost:8025). Nothing leaves the machine.
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.21.0}
+    mem_limit: 64m
+    environment:
+      MP_MAX_MESSAGES: 500
+    ports: ["127.0.0.1:8025:8025"]
     networks: [sentinel]
   kafka:
     profiles: [stream]

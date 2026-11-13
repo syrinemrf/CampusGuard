@@ -1,5 +1,6 @@
 """/api/v1 aliases, OpenAPI consistency with the routing table, rate limiting."""
 import json
+import re
 
 from conftest import make_hit
 from app.openapi import build_spec
@@ -10,7 +11,7 @@ def spec_routes():
     for path, item in build_spec()['paths'].items():
         for method in item:
             if method in {'get', 'post', 'delete', 'put', 'patch'}:
-                out.add((method.upper(), path.replace('{upload_id}', '<upload_id>').replace('{event_id}', '<event_id>')))
+                out.add((method.upper(), re.sub(r'\{(\w+)\}', r'<\1>', path)))
     return out
 
 

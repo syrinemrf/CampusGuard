@@ -20,6 +20,18 @@ _SEARCH_PARAMS = [
 ]
 _ID = {'name': 'event_id', 'in': 'path', 'required': True, 'schema': {'type': 'string'}}
 _UPLOAD_ID = {'name': 'upload_id', 'in': 'path', 'required': True, 'schema': {'type': 'string', 'pattern': '^[0-9a-f]{32}$'}}
+_ALERT = {'name': 'alert_id', 'in': 'path', 'required': True, 'schema': {'type': 'string'}}
+_RULE = {'name': 'rule_id', 'in': 'path', 'required': True, 'schema': {'type': 'string'}}
+_RULE_BODY = {'required': True, 'content': {'application/json': {'schema': {'type': 'object', 'required': ['id', 'name', 'type', 'window', 'severity'],
+    'properties': {'id': {'type': 'string', 'example': 'brute-force-ip'}, 'name': {'type': 'string'}, 'description': {'type': 'string'},
+                   'type': {'type': 'string', 'enum': ['threshold', 'cardinality', 'pattern', 'silence']},
+                   'query': {'type': 'string', 'description': 'query_string Elasticsearch (syntaxe Lucene, comme la barre Kibana)', 'example': 'event.outcome:failure'},
+                   'window': {'type': 'string', 'enum': ['5m', '15m', '1h', '24h']}, 'severity': {'type': 'string', 'enum': ['low', 'medium', 'high', 'critical']},
+                   'group_by': {'type': 'string', 'enum': ['', 'source.ip', 'user.name', 'service.name']}, 'threshold': {'type': 'integer', 'minimum': 1},
+                   'distinct_field': {'type': 'string', 'enum': ['user.name', 'source.ip', 'service.name']}, 'pattern': {'type': 'string'},
+                   'outside_hours': {'type': 'array', 'items': {'type': 'integer'}, 'example': [7, 20]},
+                   'cooldown_minutes': {'type': 'integer', 'minimum': 0, 'maximum': 1440}, 'enabled': {'type': 'boolean'},
+                   'actions': {'type': 'object', 'properties': {'email': {'type': 'boolean'}, 'webhook': {'type': 'boolean'}, 'block_ip': {'type': 'boolean'}}}}}}}}
 _ERR = {'description': 'Erreur', 'content': {'application/json': {'schema': {'$ref': '#/components/schemas/Error'}}}}
 
 
@@ -40,12 +52,13 @@ def build_spec():
     secure = [{'sessionCookie': []}]
     return {
         'openapi': '3.0.3',
-        'info': {'title': 'CampusGuard / Sentinel API', 'version': '2.0.0',
+        'info': {'title': 'CampusGuard / Sentinel API', 'version': '3.0.0',
                  'description': ("API REST du laboratoire CampusGuard. Authentification par cookie de session (POST /api/auth/login) ; "
                                  "les requêtes POST/DELETE exigent l'en-tête X-CSRF-Token renvoyé à la connexion. "
                                  "Limite : 300 requêtes/minute et par utilisateur (HTTP 429).")},
         'servers': [{'url': '/'}],
-        'tags': [{'name': 'auth'}, {'name': 'uploads'}, {'name': 'search'}, {'name': 'dashboard'}, {'name': 'v1', 'description': 'Alias stables /api/v1 du sujet (logs, files, stats).'}],
+        'tags': [{'name': 'auth'}, {'name': 'uploads'}, {'name': 'search'}, {'name': 'dashboard'},
+                 {'name': 'alerts', 'description': 'S4 — alertes, incidents, règles (éditeur + test), blocage d’IP.'}, {'name': 'v1', 'description': 'Alias stables /api/v1 du sujet (logs, files, stats).'}],
         'security': secure,
         'paths': {
             '/api/auth/login': {'post': {'tags': ['auth'], 'summary': 'Connexion (JSON)', 'security': [],
@@ -82,6 +95,40 @@ def build_spec():
                         'requestBody': {'required': True, 'content': {'application/json': {'schema': {'type': 'object', 'properties': {'widgets': {'type': 'object', 'additionalProperties': {'type': 'boolean'}, 'example': {'health': False}}, 'period': {'type': 'string', 'enum': ['24h', '7d', '30d', '90d']}}}}}},
                         'responses': {'200': _ok('Préférences enregistrées'), '400': _ERR, '401': _ERR}},
                 'delete': {'tags': ['dashboard'], 'summary': 'Tout réafficher (réinitialiser)', 'responses': {'200': _ok('Préférences par défaut'), '401': _ERR}}},
+            '/api/alerts': {'get': {'tags': ['alerts'], 'summary': 'Liste des alertes',
+                'parameters': [{'name': 'status', 'in': 'query', 'schema': {'type': 'string', 'enum': ['active', 'open', 'acknowledged', 'resolved']}},
+                               {'name': 'severity', 'in': 'query', 'schema': {'type': 'string', 'enum': ['low', 'medium', 'high', 'critical']}},
+                               {'name': 'rule', 'in': 'query', 'schema': {'type': 'string'}},
+                               {'name': 'limit', 'in': 'query', 'schema': {'type': 'integer', 'default': 50, 'maximum': 200}}],
+                'responses': {'200': _ok('Alertes'), '401': _ERR}}},
+            '/api/alerts/summary': {'get': {'tags': ['alerts'], 'summary': 'Résumé interrogé périodiquement (badge, titre de l’onglet, notification du navigateur)', 'responses': {'200': _ok('Résumé')}}},
+            '/api/alerts/stats': {'get': {'tags': ['alerts'], 'summary': 'Statistiques : alertes par jour, top 10 des règles, MTTR, ouvertes par gravité',
+                'parameters': [{'name': 'days', 'in': 'query', 'schema': {'type': 'integer', 'default': 14, 'maximum': 90}}], 'responses': {'200': _ok('Statistiques')}}},
+            '/api/alerts/{alert_id}': {'parameters': [_ALERT], 'get': {'tags': ['alerts'], 'summary': "Détail d'une alerte (historique, notifications, réponse)", 'responses': {'200': _ok('Alerte'), '404': _ERR}}},
+            '/api/alerts/{alert_id}/{action}': {'parameters': [_ALERT, {'name': 'action', 'in': 'path', 'required': True, 'schema': {'type': 'string', 'enum': ['acknowledge', 'resolve']}}],
+                'post': {'tags': ['alerts'], 'summary': 'Prendre en compte ou résoudre (admin, analyste)',
+                         'requestBody': {'content': {'application/json': {'schema': {'type': 'object', 'properties': {'note': {'type': 'string', 'maxLength': 500}}}}}},
+                         'responses': {'200': _ok('Alerte mise à jour'), '403': _ERR, '404': _ERR, '409': _ERR}}},
+            '/api/alerts/run': {'post': {'tags': ['alerts'], 'summary': 'Évaluer les règles maintenant (admin, démonstration)', 'responses': {'200': _ok('Résumé du cycle'), '409': _ERR}}},
+            '/api/alerts/rules': {
+                'get': {'tags': ['alerts'], 'summary': 'Règles d’alerte', 'responses': {'200': _ok('Règles')}},
+                'post': {'tags': ['alerts'], 'summary': 'Créer une règle (admin)', 'requestBody': _RULE_BODY, 'responses': {'201': _ok('Règle'), '400': _ERR, '403': _ERR}}},
+            '/api/alerts/rules/test': {'post': {'tags': ['alerts'], 'summary': 'Tester une règle sans l’enregistrer : groupes qui déclencheraient + requête Elasticsearch',
+                'requestBody': _RULE_BODY, 'responses': {'200': _ok('Résultat du test'), '400': _ERR}}},
+            '/api/alerts/rules/{rule_id}': {'parameters': [_RULE],
+                'put': {'tags': ['alerts'], 'summary': 'Modifier une règle (admin)', 'requestBody': _RULE_BODY, 'responses': {'200': _ok('Règle'), '400': _ERR, '404': _ERR}},
+                'delete': {'tags': ['alerts'], 'summary': 'Supprimer une règle (admin)', 'responses': {'200': _ok('Supprimée'), '404': _ERR}}},
+            '/api/alerts/rules/{rule_id}/enabled': {'parameters': [_RULE], 'post': {'tags': ['alerts'], 'summary': 'Activer / désactiver une règle (admin)',
+                'requestBody': {'content': {'application/json': {'schema': {'type': 'object', 'properties': {'enabled': {'type': 'boolean'}}}}}}, 'responses': {'200': _ok('Règle')}}},
+            '/api/blocklist': {
+                'get': {'tags': ['alerts'], 'summary': 'IP bloquées (actives, durée restante) et historique', 'responses': {'200': _ok('Liste')}},
+                'post': {'tags': ['alerts'], 'summary': 'Bloquer une IP pour une durée (admin) — effet local uniquement',
+                         'requestBody': {'required': True, 'content': {'application/json': {'schema': {'type': 'object', 'required': ['ip'],
+                             'properties': {'ip': {'type': 'string'}, 'minutes': {'type': 'integer', 'minimum': 1, 'maximum': 1440}, 'reason': {'type': 'string'}}}}}},
+                         'responses': {'201': _ok('Bloquée'), '400': _ERR, '403': _ERR}}},
+            '/api/blocklist/{ip}': {'parameters': [{'name': 'ip', 'in': 'path', 'required': True, 'schema': {'type': 'string'}}],
+                'delete': {'tags': ['alerts'], 'summary': 'Débloquer une IP (admin)', 'responses': {'200': _ok('Débloquée'), '404': _ERR}}},
+            '/api/notifications/demo': {'get': {'tags': ['alerts'], 'summary': 'Derniers webhooks reçus par le récepteur de démonstration', 'responses': {'200': _ok('Webhooks')}}},
             '/api/v1/logs': {'get': _search_op('Liste paginée des logs', 'v1')},
             '/api/v1/logs/{event_id}': {'parameters': [_ID], 'get': {'tags': ['v1'], 'summary': "Détail d'un log", 'responses': {'200': _ok('Événement'), '404': _ERR}}},
             '/api/v1/files': {'get': {'tags': ['v1'], 'summary': 'Fichiers importés', 'responses': {'200': _ok('Liste')}}},
