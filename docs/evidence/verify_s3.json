@@ -1,61 +1,11 @@
 {
-  "date_utc": "2026-11-07T07:56:45.782891+00:00",
+  "date_utc": "2026-11-13T21:33:03.610187+00:00",
   "kibana_url": "http://localhost:5601",
   "checks": [
     {
       "name": "Kibana joignable",
-      "passed": true,
-      "detail": "HTTP 200 niveau=available"
-    },
-    {
-      "name": "Data view « CampusGuard logs » présente",
-      "passed": true,
-      "detail": "HTTP 200"
-    },
-    {
-      "name": "4 visualisations présentes (indicateur, histogramme, camembert, tableau)",
-      "passed": true,
-      "detail": "total-events=ok, events-over-time=ok, outcome-split=ok, top-failing-ips=ok"
-    },
-    {
-      "name": "Dashboard présent et relié aux 4 visualisations",
-      "passed": true,
-      "detail": "HTTP 200 références=4"
-    },
-    {
-      "name": "Export du dashboard (dépendances comprises)",
-      "passed": true,
-      "detail": "HTTP 200 objets=6"
-    },
-    {
-      "name": "Ré-import de l’export (aller-retour)",
-      "passed": true,
-      "detail": "HTTP 200 importés=6 erreurs=[]"
-    },
-    {
-      "name": "Kibana autorise l’intégration en iframe",
-      "passed": true,
-      "detail": "X-Frame-Options=None frame-ancestors=non"
-    },
-    {
-      "name": "Champs des visualisations présents dans le mapping réel",
-      "passed": true,
-      "detail": "trouvés : ['@timestamp', 'event.outcome', 'log.level', 'source.ip']"
-    },
-    {
-      "name": "Des données existent à afficher",
-      "passed": true,
-      "detail": "320 documents"
-    },
-    {
-      "name": "Connexion à l’application",
-      "passed": true,
-      "detail": "HTTP 200"
-    },
-    {
-      "name": "Page /kibana de l’application avec iframe du dashboard",
-      "passed": true,
-      "detail": "HTTP 200 frame-src=True"
+      "passed": false,
+      "detail": "HTTPConnectionPool(host='localhost', port=5601): Max retries exceeded with url: /api/status (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=5601): Failed to establish a new connection: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée\"))"
     }
   ]
 }
