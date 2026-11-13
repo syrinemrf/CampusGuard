@@ -30,11 +30,11 @@ curl -sS -X POST "${KIBANA_URL}/api/kibana/settings" \
   --data-binary '{"changes":{"courier:ignoreFilterIfFieldNotInIndex":true}}' >/dev/null \
   && printf 'Kibana setting courier:ignoreFilterIfFieldNotInIndex=true\n' || printf 'WARNING: Kibana setting not applied.\n'
 
-# Dark theme, to match the web application in which the dashboards are embedded (applies on the next page load).
+# Light theme, like the web application in which the dashboards are embedded.
 curl -sS -X POST "${KIBANA_URL}/api/kibana/settings" \
   -H 'kbn-xsrf: campusguard-setup' -H 'Content-Type: application/json' \
-  --data-binary '{"changes":{"theme:darkMode":true}}' >/dev/null \
-  && printf 'Kibana setting theme:darkMode=true\n' || printf 'WARNING: Kibana dark mode not applied.\n'
+  --data-binary '{"changes":{"theme:darkMode":false}}' >/dev/null \
+  && printf 'Kibana setting theme:darkMode=false\n' || printf 'WARNING: Kibana theme setting not applied.\n'
 
 if [ -f "${OBJECTS_FILE}" ]; then
   RESULT="$(curl -sS -X POST "${KIBANA_URL}/api/saved_objects/_import?overwrite=true" \

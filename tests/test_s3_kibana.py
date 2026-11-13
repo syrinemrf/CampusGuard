@@ -83,8 +83,8 @@ def test_dashboards_are_landscape_without_overlap_or_text_blocks():
 def test_state_colours_match_the_application_identity():
     outcome = next(o for o in objects() if o['id'] == kibana.VISUALIZATION_IDS['outcome'])
     colors = json.loads(outcome['attributes']['uiStateJSON'])['vis']['colors']
-    assert colors['failure'] == '#FF4D6D' and colors['success'] == '#18D6C8'
-    assert '"theme:darkMode":true' in (ROOT / 'scripts' / 'setup-kibana.sh').read_text(encoding='utf-8')
+    assert colors['failure'] == '#E0344F' and colors['success'] == '#0AA9A0'
+    assert '"theme:darkMode":false' in (ROOT / 'scripts' / 'setup-kibana.sh').read_text(encoding='utf-8')
 
 
 def test_visualizations_only_use_fields_mapped_in_the_template_with_compatible_types():

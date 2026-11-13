@@ -91,9 +91,9 @@ def _xy(vis_type, mode='stacked', scale_mode='normal', y_title='Événements', l
 TABLE = {'perPage': 8, 'showPartialRows': False, 'showMetricsAtAllLevels': False, 'showTotal': False, 'totalFunc': 'sum',
          'percentageCol': '', 'autoFitRowToContent': False}
 # Same colours as the web application (identity: night / cyan / ultraviolet + semantic state colours).
-OUTCOME_COLORS = {'success': '#18D6C8', 'failure': '#FF4D6D', 'unknown': '#8B9AB5'}
-SEVERITY_COLORS = {'critical': '#FF4D6D', 'high': '#FF8A3D', 'medium': '#F5C04A', 'low': '#4DA3FF'}
-LEVEL_COLORS = {'CRITICAL': '#FF4D6D', 'ERROR': '#FF8A3D', 'WARNING': '#F5C04A', 'INFO': '#4DA3FF', 'DEBUG': '#8B9AB5'}
+OUTCOME_COLORS = {'success': '#0AA9A0', 'failure': '#E0344F', 'unknown': '#8B9AB5'}
+SEVERITY_COLORS = {'critical': '#E0344F', 'high': '#E0691A', 'medium': '#E3A21A', 'low': '#2F6FE0'}
+LEVEL_COLORS = {'CRITICAL': '#E0344F', 'ERROR': '#E0691A', 'WARNING': '#E3A21A', 'INFO': '#2F6FE0', 'DEBUG': '#8B9AB5'}
 
 
 def _colors(obj, colors):
