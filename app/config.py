@@ -1,4 +1,6 @@
 """Application configuration, read from environment variables (never from git)."""
+import hashlib
+import hmac
 import os
 from dataclasses import dataclass, field
 
@@ -67,3 +69,15 @@ class Config:
     ship_auth_events: bool = field(default_factory=lambda: _bool('SHIP_AUTH_EVENTS', True))
     alert_timezone: str = _env('ALERT_TIMEZONE', 'Africa/Tunis')
     testing: bool = False
+
+    def __post_init__(self):
+        # Demo webhook receiver: no token is ever written in the repository. Unless WEBHOOK_DEMO_TOKEN is set, it is
+        # derived from FLASK_SECRET_KEY (shared by the webapp and the worker), and the webhook URL defaults to it.
+        # ALERT_WEBHOOK_URL=none disables the webhook channel.
+        if not self.webhook_demo_token:
+            self.webhook_demo_token = hmac.new(self.secret_key.encode(), b'sentinel-webhook-demo', hashlib.sha256).hexdigest()[:32]
+        if not self.webhook_url:
+            base = os.getenv('WEBHOOK_DEMO_BASE', 'http://webapp:8000').rstrip('/')
+            self.webhook_url = f'{base}/hooks/demo/{self.webhook_demo_token}'
+        elif self.webhook_url.strip().lower() == 'none':
+            self.webhook_url = ''

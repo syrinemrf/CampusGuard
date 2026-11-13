@@ -148,9 +148,9 @@ services:
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-soc@campusguard.lab}
-      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-http://webapp:8000/hooks/demo/${WEBHOOK_DEMO_TOKEN:-lab-demo-token}}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
       ALERT_WEBHOOK_FORMAT: ${ALERT_WEBHOOK_FORMAT:-generic}
-      WEBHOOK_DEMO_TOKEN: ${WEBHOOK_DEMO_TOKEN:-lab-demo-token}
+      WEBHOOK_DEMO_TOKEN: ${WEBHOOK_DEMO_TOKEN:-}
       BLOCK_TTL_MINUTES: ${BLOCK_TTL_MINUTES:-15}
       BLOCK_NEVER: ${BLOCK_NEVER:-127.0.0.1/32,::1/128}
       LOGSTASH_HTTP_URL: http://logstash:8088
@@ -182,12 +182,15 @@ services:
       MONGO_DB: ${MONGO_DB:-sentinel}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       ALERT_INTERVAL_SECONDS: ${ALERT_INTERVAL_SECONDS:-30}
+      # same secret as the webapp: the demo webhook token is derived from it (no token in the repository)
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-dev-not-for-production}
+      WEBHOOK_DEMO_TOKEN: ${WEBHOOK_DEMO_TOKEN:-}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8000}
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_FROM: ${SMTP_FROM:-sentinel@campusguard.lab}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-soc@campusguard.lab}
-      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-http://webapp:8000/hooks/demo/${WEBHOOK_DEMO_TOKEN:-lab-demo-token}}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
       ALERT_WEBHOOK_FORMAT: ${ALERT_WEBHOOK_FORMAT:-generic}
       ALERT_WEBHOOK_TEMPLATE: ${ALERT_WEBHOOK_TEMPLATE:-}
       NOTIFY_RETRIES: ${NOTIFY_RETRIES:-3}

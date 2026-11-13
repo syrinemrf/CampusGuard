@@ -1,5 +1,6 @@
 """S4 — alerting (module G) and SOAR-lite response: rules, worker, silencing, cooldown, notifications, blocklist."""
 import json
+import secrets
 import struct
 from datetime import datetime, timedelta, timezone
 
@@ -14,6 +15,8 @@ from app.alerting.worker import Worker
 from app.config import Config
 
 ATTACKER = '203.0.113.77'
+DEMO = secrets.token_hex(8)          # generated: no token-looking literal in the repository
+WRONG = secrets.token_hex(8)
 
 
 # ------------------------------------------------------------------ fakes
@@ -76,7 +79,7 @@ def bucket(key, n, distinct=None):
 @pytest.fixture
 def cfg(config):
     return Config(**{**config.__dict__, 'smtp_host': 'mailpit', 'webhook_url': 'http://hooks.local/x', 'notify_retries': 3,
-                     'webhook_demo_token': 'demo-token'})
+                     'webhook_demo_token': DEMO})
 
 
 @pytest.fixture
@@ -286,7 +289,7 @@ def test_webhook_retries_with_backoff_then_records_success_or_failure(cfg):
     assert result['status'] == 'sent' and result['attempts'] == 3 and waits == [1, 2]
     failed = Notifier(cfg, http=FakeHTTP(fail=-1), sleep=lambda s: None).webhook(sample_alert())
     assert failed['status'] == 'failed' and failed['attempts'] == 3 and 'ConnectionError' in failed['error']
-    skipped = Notifier(Config(**{**cfg.__dict__, 'webhook_url': ''})).webhook(sample_alert())
+    skipped = Notifier(Config(**{**cfg.__dict__, 'webhook_url': 'none'})).webhook(sample_alert())
     assert skipped['status'] == 'skipped'
 
 
@@ -340,7 +343,7 @@ def test_blocked_address_gets_403_everywhere_but_health(s4app, stores, cfg, user
     env = {'REMOTE_ADDR': ATTACKER}
     page = client.get('/login', environ_base=env)
     assert page.status_code == 403 and 'est bloquée jusqu’à' in page.get_data(as_text=True) and page.headers['Retry-After']
-    api = client.post('/api/auth/login', json={'username': 'admin', 'password': 'x'}, environ_base=env)
+    api = client.post('/api/auth/login', json={'username': 'admin', 'password': WRONG}, environ_base=env)
     assert api.status_code == 403 and api.get_json()['error'] == 'ip_blocked'
     assert client.get('/health', environ_base=env).status_code == 200
     assert client.get('/login', environ_base={'REMOTE_ADDR': '192.0.2.1'}).status_code == 200
@@ -397,18 +400,18 @@ def test_run_now_is_admin_only_and_reports_the_cycle(s4app, make_session, stores
 def test_demo_webhook_receiver_requires_the_token_and_keeps_the_last_payloads(s4app, make_session):
     client = s4app.test_client()
     assert client.post('/hooks/demo/wrong', json={'a': 1}).status_code == 404
-    assert client.post('/hooks/demo/demo-token', json={'rule': 'x'}).status_code == 202      # CSRF-exempt, token-protected
+    assert client.post(f'/hooks/demo/{DEMO}', json={'rule': 'x'}).status_code == 202      # CSRF-exempt, token-protected
     inbox = make_session('analyste').get('/api/notifications/demo').get_json()['webhooks']
     assert inbox[0]['payload'] == {'rule': 'x'}
 
 
 def test_app_logins_are_shipped_to_logstash_without_the_password(s4app, make_session):
     session = make_session()
-    session.login('admin', 'wrong password!')
+    session.login('admin', WRONG)
     url, event = s4app.extensions['sentinel_http'].posts[-1]
     assert url == 'http://logstash:8088'
     assert (event['source_ip'], event['username'], event['outcome'], event['action']) == ('127.0.0.1', 'admin', 'failure', 'login')
-    assert event['service'] == {'name': 'campusguard-web'} and 'wrong password' not in json.dumps(event)
+    assert event['service'] == {'name': 'campusguard-web'} and WRONG not in json.dumps(event)
 
 
 def test_alert_pages_render_for_each_role(s4app, make_session, stores):
@@ -422,3 +425,12 @@ def test_alert_pages_render_for_each_role(s4app, make_session, stores):
     assert 'Alertes actives' in page and 'MTTR' in page and 'Bloquer manuellement' not in page
     assert 'Évaluer les règles maintenant' not in page
     assert 'id="nav-alert-badge"' in page
+
+
+def test_demo_webhook_token_is_derived_from_the_secret_never_hard_coded(config):
+    from app.config import Config
+    a = Config(**{**config.__dict__, 'webhook_demo_token': '', 'webhook_url': ''})
+    b = Config(**{**config.__dict__, 'secret_key': secrets.token_hex(16), 'webhook_demo_token': '', 'webhook_url': ''})
+    assert len(a.webhook_demo_token) == 32 and a.webhook_demo_token != b.webhook_demo_token
+    assert a.webhook_url.endswith('/hooks/demo/' + a.webhook_demo_token)
+    assert Config(**{**config.__dict__, 'webhook_url': 'none'}).webhook_url == ''

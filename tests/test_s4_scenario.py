@@ -65,4 +65,5 @@ def test_compose_runs_a_separate_worker_and_a_local_mail_catcher():
     assert '--healthcheck' in w['healthcheck']['test'] and w['restart'] == 'unless-stopped'
     assert c['mailpit']['ports'] == ['127.0.0.1:8025:8025'] and 'profiles' not in c['mailpit']
     assert c['webapp']['environment']['LOGSTASH_HTTP_URL'] == 'http://logstash:8088'
-    assert 'demo' in c['alert-worker']['environment']['ALERT_WEBHOOK_URL']
+    assert 'FLASK_SECRET_KEY' in c['alert-worker']['environment']       # derives the same demo webhook token
+    assert 'token' not in (ROOT / 'docker-compose.yml').read_text(encoding='utf-8').split('WEBHOOK_DEMO_TOKEN')[1][:40]

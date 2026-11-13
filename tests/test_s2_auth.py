@@ -162,10 +162,13 @@ def test_seed_users_generates_passwords_once(stores):
 
 def test_cli_set_password_replaces_a_lost_password_and_is_audited(app, users, stores):
     from conftest import Session
+    import secrets
+    new = secrets.token_urlsafe(16)
     runner = app.test_cli_runner()
-    res = runner.invoke(args=['set-password', 'analyste'], input='brand new password\nbrand new password\n')
+    res = runner.invoke(args=['set-password', 'analyste'], input=f'{new}\n{new}\n')
     assert res.exit_code == 0 and 'modifié' in res.output
-    assert Session(app).login('analyste', 'brand new password').status_code == 200
+    assert Session(app).login('analyste', new).status_code == 200
     assert stores.db.audit_actions.find_one({'action': 'password_reset', 'target': 'analyste'})
-    assert runner.invoke(args=['set-password', 'nobody'], input='brand new password\nbrand new password\n').exit_code != 0
-    assert runner.invoke(args=['set-password', 'analyste'], input='short\nshort\n').exit_code != 0
+    assert runner.invoke(args=['set-password', 'nobody'], input=f'{new}\n{new}\n').exit_code != 0
+    too_short = 'x' * 5
+    assert runner.invoke(args=['set-password', 'analyste'], input=f'{too_short}\n{too_short}\n').exit_code != 0
