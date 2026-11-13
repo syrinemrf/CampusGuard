@@ -23,6 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from app.kibana import ALERTS_DATA_VIEW_ID, DASHBOARD_ID as DASHBOARD, RUNTIME_FIELDS, VISUALIZATION_IDS  # noqa: E402
 
 VIS = list(VISUALIZATION_IDS.values())
+UNREACHABLE = """La stack n'est pas joignable sur {url} (connexion refusée). Démarrez Docker Desktop, attendez « Engine running », puis : docker compose up -d --build --wait --wait-timeout 600 et docker compose ps (tout « healthy »). Aucune preuve n'est écrite."""
 RESULTS = []
 
 
@@ -42,11 +43,17 @@ def main():
     ap.add_argument('--evidence')
     args = ap.parse_args()
     kb = args.kibana_url.rstrip('/')
+    if args.password and '<' in args.password:
+        print('[STOP] Remplacez « <mdp> » par le vrai mot de passe du compte (affiché par seed-users ou défini dans .env).')
+        return 2
     hdr = {'kbn-xsrf': 'campusguard-verify'}
 
     try:
         r = requests.get(f'{kb}/api/status', timeout=15)
         check('Kibana joignable', r.status_code == 200, f"HTTP {r.status_code} niveau={r.json().get('status', {}).get('overall', {}).get('level')}")
+    except requests.ConnectionError:
+        print('[STOP] ' + UNREACHABLE.format(url=kb))
+        return 2
     except requests.RequestException as exc:
         check('Kibana joignable', False, str(exc))
         return finish(args)

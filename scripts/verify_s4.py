@@ -28,6 +28,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import simulate_attack  # noqa: E402
 
 RESULTS = []
+UNREACHABLE = """La stack n'est pas joignable sur {url} (connexion refusée). Démarrez Docker Desktop, attendez « Engine running », puis : docker compose up -d --build --wait --wait-timeout 600 et docker compose ps (tout « healthy »). Aucune preuve n'est écrite."""
 
 
 def check(name, ok, detail=''):
@@ -88,7 +89,14 @@ def main():
     args = ap.parse_args()
     es = args.elasticsearch_url.rstrip('/')
 
-    app = App(args.app_url, args.username, args.password)
+    if '<' in args.password:
+        print('[STOP] Remplacez « <mot de passe admin> » par le vrai mot de passe du compte admin (affiché par seed-users ou défini dans .env).')
+        return 2
+    try:
+        app = App(args.app_url, args.username, args.password)
+    except requests.ConnectionError:
+        print('[STOP] ' + UNREACHABLE.format(url=args.app_url))
+        return 2
     if not check('Connexion administrateur à l’application', app.status == 200, f'HTTP {app.status}'):
         return finish(args)
     rules = app.get('/api/alerts/rules').json().get('rules', [])
