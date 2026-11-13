@@ -2,7 +2,7 @@
 
 CampusGuard est un **mini-SIEM/SOAR explicable** conçu pour centraliser, normaliser et explorer des journaux de sécurité dans un environnement académique local. Le projet vise à aider un analyste SOC à rechercher des événements, comprendre une activité suspecte et, à terme, gérer des alertes et des réponses réversibles.
 
-Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure Docker, ingestion, authentification par rôles, upload CSV/JSON/TXT, recherche, export, API + Swagger, centre de pilotage et dashboard Kibana d’analyse) et le **module avancé G — alerting** avec une réponse **SOAR-lite** (S4 : règles, worker séparé, notifications e-mail/webhook, incidents, blocage d’IP local à durée limitée). S1, S2 et S3 ont été validés sur la stack Docker réelle (`verify_core` 8/8, `verify_s2` 18/18, `verify_s3` 11/11) ; S4 se valide avec `scripts/verify_s4.py`. État détaillé et honnête : [`PROJECT_STATE.md`](PROJECT_STATE.md). Ce n’est pas une configuration de production.
+Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure Docker, ingestion, authentification par rôles, upload CSV/JSON/TXT, recherche, export, API + Swagger, centre de pilotage et dashboard Kibana d’analyse) et le **module avancé G — alerting** avec une réponse **SOAR-lite** (S4 : règles, worker séparé, notifications e-mail/webhook, incidents, blocage d’IP local à durée limitée). Tout est validé sur la stack Docker réelle : `verify_core` 8/8, `verify_s2` 18/18, `verify_s3` 13/13 et `verify_s4` 21/21 (13 novembre 2026, preuves dans `docs/evidence/`). État détaillé et honnête : [`PROJECT_STATE.md`](PROJECT_STATE.md). Ce n’est pas une configuration de production.
 
 ## Fonctionnalités disponibles
 
@@ -17,7 +17,7 @@ Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure 
 - adaptateurs expérimentaux Redis Streams/Pub/Sub et Kafka ;
 - **S3** : deux tableaux de bord complémentaires — le **centre de pilotage** (accueil : KPI comparés à la période précédente, alertes à traiter, IP prioritaires, santé mesurée des services, pipelines Logstash, fraîcheur et rejets) et le **dashboard Kibana d’analyse** (12 visualisations : filtres interactifs, part des échecs, carte de chaleur heure × jour, comptes visés, pays, alertes par gravité) exporté en NDJSON dans `ingestion/kibana/`, ré-importable et intégré dans l’application ; fenêtre modale de détail, page 404, fil d’Ariane, version mobile ; préférences par utilisateur (MongoDB) ; documents d’[analyse fonctionnelle](docs/ANALYSE_FONCTIONNELLE.pdf) et d’[architecture technique](docs/ARCHITECTURE.pdf) ;
 - **S4** : 8 règles de détection du scénario C (force brute, credential stuffing, pays non autorisé, hors horaires, élévation de privilèges, injection SQL, pic d’erreurs, silence), éditeur avec **test avant activation**, worker d’alertes séparé, *silencing* et *cooldown*, notifications e-mail (Mailpit) et webhook (Slack/Discord/Teams/JSON) avec *retry*, prise en compte / résolution / MTTR, **blocage d’IP local** avec durée de vie et audit (détails dans la section « S4 ») ;
-- 245 tests automatisés (socle, S2, S3 : centre de pilotage, objets Kibana, interface ; S4 : règles, worker, notifications, blocage, API et droits).
+- 263 tests automatisés (socle, S2, S3 : centre de pilotage, objets Kibana, interface ; S4 : règles, worker, notifications, blocage, API et droits).
 
 ## Validation CORE du 31 octobre 2026
 
@@ -244,7 +244,6 @@ Cette configuration est réservée à un **laboratoire local** : Elasticsearch f
 
 Le projet ne fournit pas encore :
 
-- la **validation sur la stack réelle de S4** (`scripts/verify_s4.py`) et de la nouvelle version du dashboard Kibana (`scripts/verify_s3.py`, à relancer) ;
 - l’escalade et le *snooze* des alertes, le flux continu et le *live tail* WebSocket, le rapport PDF mensuel (S5) ;
 - le machine learning et le NLP (S6) ; la gestion des utilisateurs par l’interface ;
 - un pipeline Kafka opérationnel de bout en bout.

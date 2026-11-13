@@ -1,0 +1,111 @@
+{
+  "date_utc": "2026-11-13T22:40:21.602068+00:00",
+  "app_url": "http://localhost:8000",
+  "checks": [
+    {
+      "name": "Connexion administrateur à l’application",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Règles par défaut présentes (scénario C)",
+      "passed": true,
+      "detail": "8 règles, actives : ['brute-force-ip', 'credential-stuffing', 'error-spike', 'off-hours-login', 'privilege-escalation', 'sql-injection', 'unauthorized-country']"
+    },
+    {
+      "name": "Worker d’alertes actif (battement de cœur Redis)",
+      "passed": true,
+      "detail": "dernier cycle 2026-11-13T22:38:53.686134+00:00 — 7 règles en 95 ms"
+    },
+    {
+      "name": "Scénario d’attaque envoyé à Logstash (HTTP 8088)",
+      "passed": true,
+      "detail": "18 événements, IP {'brute': '203.0.113.177', 'stuffer': '198.51.100.104', 'sqli': '203.0.113.208', 'foreign': '8.8.8.8', 'internal': '192.0.2.89', 'night_user': 'user_855', 'sudo_user': 'user_686'}"
+    },
+    {
+      "name": "Événements indexés dans Elasticsearch (logs-auth-*)",
+      "passed": true,
+      "detail": "IP de test : 203.0.113.177, 198.51.100.104, 203.0.113.208"
+    },
+    {
+      "name": "Alerte « brute-force-ip » levée pour 203.0.113.177",
+      "passed": true,
+      "detail": "gravité high, 8 évén., état open"
+    },
+    {
+      "name": "Alerte « credential-stuffing » levée pour 198.51.100.104",
+      "passed": true,
+      "detail": "gravité high, 6 évén., état open"
+    },
+    {
+      "name": "Alerte « sql-injection » levée pour 203.0.113.208",
+      "passed": true,
+      "detail": "gravité critical, 1 évén., état open"
+    },
+    {
+      "name": "Alerte « privilege-escalation » levée pour user_686",
+      "passed": true,
+      "detail": "gravité high, 1 évén., état open"
+    },
+    {
+      "name": "Alerte « off-hours-login » levée pour user_855",
+      "passed": true,
+      "detail": "gravité medium, 1 évén., état open"
+    },
+    {
+      "name": "Alerte « unauthorized-country » levée pour 8.8.8.8",
+      "passed": true,
+      "detail": "gravité critical, 1 évén., état open"
+    },
+    {
+      "name": "Notification e-mail envoyée (SMTP → Mailpit)",
+      "passed": true,
+      "detail": "{\"at\": \"2026-11-13T22:39:23.785136+00:00\", \"attempts\": 1, \"channel\": \"email\", \"error\": null, \"status\": \"sent\"}"
+    },
+    {
+      "name": "Notification webhook envoyée (avec retry)",
+      "passed": true,
+      "detail": "{\"at\": \"2026-11-13T22:39:23.819847+00:00\", \"attempts\": 1, \"channel\": \"webhook\", \"error\": null, \"status\": \"sent\"}"
+    },
+    {
+      "name": "E-mail reçu dans Mailpit (avec graphique PNG en pièce jointe)",
+      "passed": true,
+      "detail": "sujet : [Sentinel][Haute] Force brute : 5 échecs en 5 min depuis une IP — 203.0.113.177 — pièces jointes : 1"
+    },
+    {
+      "name": "Webhook reçu par le récepteur de démonstration",
+      "passed": true,
+      "detail": "6 webhook(s) dans la boîte"
+    },
+    {
+      "name": "IP de l’attaquant bloquée dans Redis avec une durée (TTL)",
+      "passed": true,
+      "detail": "jusqu’à 2026-11-13T22:54:23.585287+00:00 (reste 861 s), motif : règle brute-force-ip"
+    },
+    {
+      "name": "Alerte copiée dans Elasticsearch (sentinel-alerts-*) pour Kibana",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Silencing : la même attaque ne crée pas de 2e alerte",
+      "passed": true,
+      "detail": "1 alerte(s) pour 203.0.113.177, occurrences = 4"
+    },
+    {
+      "name": "Cycle d’incident : prise en compte puis résolution",
+      "passed": true,
+      "detail": "HTTP 200/200, délai 57 s"
+    },
+    {
+      "name": "MTTR calculé",
+      "passed": true,
+      "detail": "MTTR = 57 s sur 1 alerte(s)"
+    },
+    {
+      "name": "Déblocage manuel audité",
+      "passed": true,
+      "detail": "HTTP 200"
+    }
+  ]
+}

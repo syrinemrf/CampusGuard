@@ -9,10 +9,10 @@
 |---|---|---|---|
 | S1 / CORE | Docker Compose ELK + MongoDB + Redis + Flask, ingestion synthétique, mapping strict | 21 tests | **`verify_core` 8/8** (31 oct.) — `docs/evidence/CORE_VALIDATION_2026-10-31.md` |
 | S2 | Authentification/rôles, upload CSV/JSON/TXT, ingestion Logstash, statut mesuré, recherche, export, API + Swagger | 145 tests | **`verify_s2` 18/18** (7 nov.) — `docs/evidence/verify_s2.json` |
-| S3 | Centre de pilotage, dashboard Kibana d'analyse (12 visualisations), modal de détail, 404, mobile, préférences | 45 tests | **`verify_s3` 11/11** (7 nov., version à 4 visualisations) ; **à relancer** pour la version à 12 visualisations |
-| S4 | Alerting (module G) + réponse SOAR-lite (blocage d'IP local à durée limitée) | 34 tests | **à exécuter** : `scripts/verify_s4.py` |
+| S3 | Centre de pilotage, dashboard Kibana d'analyse (12 visualisations), modal de détail, 404, mobile, préférences, requête avancée Lucene / Query DSL | 63 tests | **`verify_s3` 13/13** (13 nov.) — `docs/evidence/verify_s3.json` |
+| S4 | Alerting (module G) + réponse SOAR-lite (blocage d'IP local à durée limitée) | 39 tests | **`verify_s4` 21/21** (13 nov.) — `docs/evidence/verify_s4.json` |
 
-`python -m pytest -q` → **245 passed** (MongoDB, Redis et Elasticsearch simulés par mongomock, fakeredis et un faux client ES ;
+`python -m pytest -q` → **263 passed** (MongoDB, Redis et Elasticsearch simulés par mongomock, fakeredis et un faux client ES ;
 Docker, Logstash et Kibana ne sont pas lancés par les tests). Les pages ont aussi été contrôlées dans Chromium (bureau 1440 px et
 mobile 390 px) sur données simulées.
 
@@ -37,7 +37,7 @@ Deux tableaux de bord **complémentaires**, sans graphique en double :
 
 ## S4 — détection et alerting (13 novembre 2026)
 
-**Statut honnête : IMPLÉMENTÉ et TESTÉ avec des services simulés ; validation sur la stack réelle à faire avec `scripts/verify_s4.py`.**
+**Statut : VALIDÉ sur la stack Docker réelle le 13 novembre 2026 (`verify_s4` 21/21)** : attaque synthétique → Logstash → Elasticsearch → worker → 6 alertes (force brute, credential stuffing, injection SQL, élévation de privilèges, hors horaires, pays non autorisé via GeoIP 8.8.8.8 → US) → e-mail reçu dans Mailpit avec graphique PNG → webhook reçu → IP bloquée 15 min dans Redis → *silencing* (1 seule alerte, 4 occurrences) → prise en compte puis résolution → MTTR → déblocage audité.
 
 - **Règles** (MongoDB `alert_rules`) : 4 types de condition — seuil, valeurs distinctes, motif regex, absence de logs ; fenêtres 5 min,
   15 min, 1 h, 24 h ; gravités faible → critique ; option « hors horaires ». **8 règles par défaut du scénario C** : force brute
@@ -63,17 +63,11 @@ Deux tableaux de bord **complémentaires**, sans graphique en double :
 - **Scénario reproductible** : `scripts/simulate_attack.py` (adresses de documentation RFC 5737, une seule IP publique d'exemple
   pour la GeoIP).
 
-## À exécuter par Syrine sur la stack réelle
+## Preuves sur la stack réelle (13 novembre 2026)
 
-```powershell
-git pull                      # si besoin ; puis :
-docker compose up -d --build --wait --wait-timeout 600
-python scripts/verify_s3.py --kibana-url http://localhost:5601 --app-url http://localhost:8000 --username analyste --password "<mdp>" --evidence docs/evidence/verify_s3.json
-python scripts/verify_s4.py --username admin --password "<mdp admin>" --evidence docs/evidence/verify_s4.json
-```
-
-Tant que `verify_s4.py` n'affiche pas tous ses contrôles réussis, S4 reste « implémenté, non validé sur la stack réelle ».
-La règle « pays non autorisé » dépend de la base GeoLite de Logstash : le script indique en `[INFO]` si elle est chargée.
+- `docs/evidence/verify_s3.json` : **13/13** — 2 data views (champs runtime), 12 visualisations, dashboard, export de 15 objets et ré-import sans erreur, iframe, champs du mapping réel, 525 documents, carte de chaleur calculée par Elasticsearch, page `/kibana` de l'application.
+- `docs/evidence/verify_s4.json` : **21/21** (détail ci-dessus). Option non encore exécutée : `--self-block` (auto-protection de la page de connexion).
+- Historique : `verify_s3_2026-11-07.json` (11/11, première version à 4 visualisations), `verify_s2.json` (18/18), `CORE_VALIDATION_2026-10-31.md` (8/8).
 
 ## Limites assumées
 
@@ -86,8 +80,7 @@ La règle « pays non autorisé » dépend de la base GeoLite de Logstash : le s
 
 ## Git et coordination externe
 
-- Dépôt : <https://github.com/syrinemrf/CampusGuard>, branche `feat/s2-auth-upload-search`. Les commits S3/S4 du 13 novembre sont
-  **locaux** tant que Syrine ne les a pas poussés (`git push`).
+- Dépôt : <https://github.com/syrinemrf/CampusGuard>, branche `feat/s2-auth-upload-search`.
 - Jira (`KAN`) est tenu à jour avec, pour chaque ticket, ce qui est fait, la preuve et ce qui manque.
 
 ## Prochaine tranche (S5)

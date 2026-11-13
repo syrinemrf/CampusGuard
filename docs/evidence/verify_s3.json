@@ -1,11 +1,71 @@
 {
-  "date_utc": "2026-11-13T21:33:03.610187+00:00",
+  "date_utc": "2026-11-13T22:39:03.735480+00:00",
   "kibana_url": "http://localhost:5601",
   "checks": [
     {
       "name": "Kibana joignable",
-      "passed": false,
-      "detail": "HTTPConnectionPool(host='localhost', port=5601): Max retries exceeded with url: /api/status (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=5601): Failed to establish a new connection: [WinError 10061] Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée\"))"
+      "passed": true,
+      "detail": "HTTP 200 niveau=available"
+    },
+    {
+      "name": "Data view « CampusGuard logs » présente avec les champs runtime heure/jour",
+      "passed": true,
+      "detail": "HTTP 200 runtime=['day_of_week', 'hour_of_day']"
+    },
+    {
+      "name": "Data view « CampusGuard alertes » présente",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "12 visualisations présentes",
+      "passed": true,
+      "detail": "guide=ok, controls=ok, total-events=ok, outcome-split=ok, failure-share=ok, failures-heatmap=ok, top-failing-ips=ok, top-targeted-users=ok, events-over-time=ok, failure-countries=ok, alerts-severity=ok, alerts-over-time=ok"
+    },
+    {
+      "name": "Dashboard présent et relié aux 12 visualisations",
+      "passed": true,
+      "detail": "HTTP 200 références=12"
+    },
+    {
+      "name": "Export du dashboard (dépendances comprises)",
+      "passed": true,
+      "detail": "HTTP 200 objets=15"
+    },
+    {
+      "name": "Ré-import de l’export (aller-retour)",
+      "passed": true,
+      "detail": "HTTP 200 importés=15 erreurs=[]"
+    },
+    {
+      "name": "Kibana autorise l’intégration en iframe",
+      "passed": true,
+      "detail": "X-Frame-Options=None frame-ancestors=non"
+    },
+    {
+      "name": "Champs des visualisations présents dans le mapping réel",
+      "passed": true,
+      "detail": "trouvés : ['@timestamp', 'event.outcome', 'log.level', 'source.ip']"
+    },
+    {
+      "name": "Des données existent à afficher",
+      "passed": true,
+      "detail": "525 documents"
+    },
+    {
+      "name": "Champs runtime heure/jour calculés par Elasticsearch (carte de chaleur)",
+      "passed": true,
+      "detail": "HTTP 200 heures=3 jours=['5 ven', '6 sam']"
+    },
+    {
+      "name": "Connexion à l’application",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Page /kibana de l’application avec iframe du dashboard",
+      "passed": true,
+      "detail": "HTTP 200 frame-src=True"
     }
   ]
 }
