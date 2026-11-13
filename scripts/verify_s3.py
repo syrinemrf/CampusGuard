@@ -4,7 +4,7 @@
     python scripts/verify_s3.py --kibana-url http://localhost:5601 \\
         [--app-url http://localhost:8000 --username analyste --password '<mdp>'] [--evidence docs/evidence/s3-verify-result.json]
 
-Checks: Kibana is up, the data view + 4 visualizations + dashboard exist and reference each other, the dashboard
+Checks: Kibana is up, the 2 data views + 12 visualizations + dashboard exist and reference each other, the dashboard
 can be exported and re-imported (round trip), Kibana allows embedding in an iframe, the visualizations' fields
 exist in the live index mapping, and (optionally) the web app serves the embedded dashboard page.
 Exit code 0 only if every check passes. Nothing is mocked.
@@ -15,10 +15,14 @@ import json
 import sys
 from datetime import datetime, timezone
 
+import pathlib
+
 import requests
 
-DASHBOARD = 'sentinel-security-overview'
-VIS = ['sentinel-vis-total-events', 'sentinel-vis-events-over-time', 'sentinel-vis-outcome-split', 'sentinel-vis-top-failing-ips']
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+from app.kibana import ALERTS_DATA_VIEW_ID, DASHBOARD_ID as DASHBOARD, RUNTIME_FIELDS, VISUALIZATION_IDS  # noqa: E402
+
+VIS = list(VISUALIZATION_IDS.values())
 RESULTS = []
 
 
@@ -48,23 +52,27 @@ def main():
         return finish(args)
 
     r = requests.get(f'{kb}/api/saved_objects/index-pattern/campusguard-logs', timeout=15)
-    check('Data view « CampusGuard logs » présente', r.status_code == 200, f'HTTP {r.status_code}')
+    runtime = json.loads(r.json().get('attributes', {}).get('runtimeFieldMap') or '{}') if r.status_code == 200 else {}
+    check('Data view « CampusGuard logs » présente avec les champs runtime heure/jour', r.status_code == 200 and set(RUNTIME_FIELDS) <= set(runtime),
+          f'HTTP {r.status_code} runtime={sorted(runtime)}')
+    r = requests.get(f'{kb}/api/saved_objects/index-pattern/{ALERTS_DATA_VIEW_ID}', timeout=15)
+    check('Data view « CampusGuard alertes » présente', r.status_code == 200, f'HTTP {r.status_code}')
     found = {}
     for vid in VIS:
         r = requests.get(f'{kb}/api/saved_objects/visualization/{vid}', timeout=15)
         found[vid] = r.status_code == 200
-    check('4 visualisations présentes (indicateur, histogramme, camembert, tableau)', all(found.values()),
+    check(f'{len(VIS)} visualisations présentes', all(found.values()),
           ', '.join(f"{k.split('sentinel-vis-')[1]}={'ok' if v else 'ABSENT'}" for k, v in found.items()))
     r = requests.get(f'{kb}/api/saved_objects/dashboard/{DASHBOARD}', timeout=15)
     dash_ok = r.status_code == 200
     refs = {x['id'] for x in r.json().get('references', [])} if dash_ok else set()
-    check('Dashboard présent et relié aux 4 visualisations', dash_ok and refs == set(VIS), f'HTTP {r.status_code} références={len(refs)}')
+    check(f'Dashboard présent et relié aux {len(VIS)} visualisations', dash_ok and refs == set(VIS), f'HTTP {r.status_code} références={len(refs)}')
 
     r = requests.post(f'{kb}/api/saved_objects/_export', headers=hdr, timeout=30,
                       json={'objects': [{'type': 'dashboard', 'id': DASHBOARD}], 'includeReferencesDeep': True})
     lines = [json.loads(x) for x in r.text.splitlines() if x.strip()] if r.status_code == 200 else []
     objs = [x for x in lines if 'type' in x]
-    check('Export du dashboard (dépendances comprises)', r.status_code == 200 and len(objs) >= 6, f'HTTP {r.status_code} objets={len(objs)}')
+    check('Export du dashboard (dépendances comprises)', r.status_code == 200 and len(objs) >= len(VIS) + 3, f'HTTP {r.status_code} objets={len(objs)}')
     if objs:
         payload = ''.join(json.dumps(o) + '\n' for o in objs)
         r = requests.post(f'{kb}/api/saved_objects/_import?overwrite=true', headers=hdr, timeout=60,
@@ -86,6 +94,14 @@ def main():
               f'trouvés : {sorted(names)}' if names else f'HTTP {m.status_code} (aucun index logs-* ?)')
         c = requests.get(f'{args.elasticsearch_url.rstrip("/")}/logs-*/_count', timeout=15).json().get('count', 0)
         check('Des données existent à afficher', c > 0, f'{c} documents')
+        # The painless scripts of the runtime fields really compile and run on the live data (heatmap).
+        h = requests.post(f'{args.elasticsearch_url.rstrip("/")}/logs-*/_search', timeout=30, json={
+            'size': 0, 'runtime_mappings': RUNTIME_FIELDS,
+            'aggs': {'h': {'terms': {'field': 'hour_of_day', 'size': 24}}, 'd': {'terms': {'field': 'day_of_week', 'size': 7}}}})
+        aggs = h.json().get('aggregations', {}) if h.status_code == 200 else {}
+        check('Champs runtime heure/jour calculés par Elasticsearch (carte de chaleur)',
+              h.status_code == 200 and bool(aggs.get('h', {}).get('buckets')),
+              f"HTTP {h.status_code} heures={len(aggs.get('h', {}).get('buckets', []))} jours={[b['key'] for b in aggs.get('d', {}).get('buckets', [])]}")
     except requests.RequestException as exc:
         check('Elasticsearch joignable pour le contrôle des champs', False, str(exc))
 

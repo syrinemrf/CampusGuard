@@ -62,7 +62,7 @@ def create_app(config=None, stores=None):
     app.register_blueprint(v1_bp)
     app.register_blueprint(web_bp)
 
-    app.jinja_env.globals.update(csrf_token=csrf_token, ROLE_LABELS=ROLE_LABELS)
+    app.jinja_env.globals.update(csrf_token=csrf_token, ROLE_LABELS=ROLE_LABELS, spark=sparkline_points)
     app.jinja_env.filters['urlencode_filters'] = lambda f: urlencode(
         [(k, ','.join(v) if isinstance(v, list) else v) for k, v in f.items()])
 
@@ -112,6 +112,16 @@ def create_app(config=None, stores=None):
     register_health(app)
     register_cli(app)
     return app
+
+
+def sparkline_points(values, width=120, height=34, pad=3):
+    """SVG polyline points for a small trend line (rendered server-side: no inline script, CSP-safe)."""
+    values = list(values or [])
+    if len(values) < 2:
+        return ''
+    top = max(values) or 1
+    step = (width - 2 * pad) / (len(values) - 1)
+    return ' '.join(f'{pad + i * step:.1f},{height - pad - (v / top) * (height - 2 * pad):.1f}' for i, v in enumerate(values))
 
 
 def rate_limit(app, config):

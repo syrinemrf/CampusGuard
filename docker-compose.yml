@@ -24,9 +24,11 @@ services:
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       TEMPLATE_FILE: /setup/logs-template.json
+      ALERTS_TEMPLATE_FILE: /setup/alerts-template.json
     volumes:
       - ./scripts/setup-index.sh:/setup/setup-index.sh:ro
       - ./ingestion/elasticsearch/logs-template.json:/setup/logs-template.json:ro
+      - ./ingestion/elasticsearch/alerts-template.json:/setup/alerts-template.json:ro
     depends_on:
       elasticsearch: {condition: service_healthy}
     networks: [sentinel]
@@ -112,10 +114,12 @@ services:
     environment:
       KIBANA_URL: http://kibana:5601
       DATA_VIEW_FILE: /setup/kibana-data-view.json
+      ALERTS_DATA_VIEW_FILE: /setup/kibana-data-view-alerts.json
       OBJECTS_FILE: /setup/sentinel-dashboard.ndjson
     volumes:
       - ./scripts/setup-kibana.sh:/setup/setup-kibana.sh:ro
       - ./ingestion/kibana/data-view.json:/setup/kibana-data-view.json:ro
+      - ./ingestion/kibana/data-view-alerts.json:/setup/kibana-data-view-alerts.json:ro
       - ./ingestion/kibana/sentinel-dashboard.ndjson:/setup/sentinel-dashboard.ndjson:ro
     depends_on:
       kibana: {condition: service_healthy}

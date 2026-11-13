@@ -18,8 +18,8 @@ def objects():
     return [json.loads(line) for line in NDJSON.read_text(encoding='utf-8').splitlines() if line.strip()]
 
 
-def template_fields():
-    tpl = json.loads((ROOT / 'ingestion' / 'elasticsearch' / 'logs-template.json').read_text(encoding='utf-8'))
+def template_fields(name='logs-template.json'):
+    tpl = json.loads((ROOT / 'ingestion' / 'elasticsearch' / name).read_text(encoding='utf-8'))
     props = (tpl.get('template') or tpl)['mappings']['properties']
     out = {}
 
@@ -39,12 +39,15 @@ def test_exported_file_is_up_to_date_with_the_generator():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_ndjson_has_data_view_three_plus_one_visualizations_and_a_dashboard():
+def test_ndjson_has_two_data_views_twelve_visualizations_and_a_dashboard():
     objs = objects()
     kinds = [o['type'] for o in objs]
-    assert kinds.count('index-pattern') == 1 and kinds.count('dashboard') == 1
-    assert kinds.count('visualization') == 4          # 3 required visualizations + 1 indicator
+    assert kinds.count('index-pattern') == 2 and kinds.count('dashboard') == 1
+    assert kinds.count('visualization') == 12 == len(kibana.VISUALIZATION_IDS)
     assert len({o['id'] for o in objs}) == len(objs)
+    # the 4 S3 visualizations keep their ids (exports made before stay importable)
+    for vid in ('sentinel-vis-total-events', 'sentinel-vis-events-over-time', 'sentinel-vis-outcome-split', 'sentinel-vis-top-failing-ips'):
+        assert vid in {o['id'] for o in objs}
 
 
 def test_every_reference_resolves_inside_the_file():
@@ -56,33 +59,68 @@ def test_every_reference_resolves_inside_the_file():
     dash = next(o for o in objs if o['type'] == 'dashboard')
     panels = json.loads(dash['attributes']['panelsJSON'])
     names = {r['name'] for r in dash['references']}
-    assert len(panels) == 4 and {p['panelRefName'] for p in panels} == names
+    assert len(panels) == 12 and {p['panelRefName'] for p in panels} == names
     assert {r['id'] for r in dash['references']} == set(kibana.VISUALIZATION_IDS.values())
     assert dash['id'] == kibana.DASHBOARD_ID
 
 
+def test_dashboard_grid_has_no_overlapping_panels():
+    dash = next(o for o in objects() if o['type'] == 'dashboard')
+    cells = set()
+    for panel in json.loads(dash['attributes']['panelsJSON']):
+        g = panel['gridData']
+        assert g['x'] + g['w'] <= 48
+        for x in range(g['x'], g['x'] + g['w']):
+            for y in range(g['y'], g['y'] + g['h']):
+                assert (x, y) not in cells, panel['panelIndex']
+                cells.add((x, y))
+
+
 def test_visualizations_only_use_fields_mapped_in_the_template_with_compatible_types():
-    fields = template_fields()
+    logs = {**template_fields(), **{k: v['type'] for k, v in kibana.RUNTIME_FIELDS.items()}}
+    alerts = template_fields('alerts-template.json')
     used = []
     for obj in objects():
         if obj['type'] != 'visualization':
             continue
         state = json.loads(obj['attributes']['visState'])
-        assert state['type'] in {'metric', 'histogram', 'pie', 'table'}
+        assert state['type'] in {'metric', 'histogram', 'area', 'pie', 'table', 'heatmap', 'markdown', 'input_control_vis'}
+        view = next((r['id'] for r in obj['references']), None)
+        fields = alerts if view == kibana.ALERTS_DATA_VIEW_ID else logs
         for agg in state['aggs']:
             field = agg['params'].get('field')
             if field:
-                used.append((agg['type'], field))
-                assert field in fields, f'{field} is not in the ES template'
+                used.append(field)
+                assert field in fields, f'{field} is not in the ES template / data view'
                 if agg['type'] == 'date_histogram':
                     assert fields[field] == 'date'
                 if agg['type'] == 'terms':
-                    assert fields[field] in {'keyword', 'ip'}
-        # KQL filters must also reference mapped fields
+                    assert fields[field] in {'keyword', 'ip', 'long'}
+        for control in state['params'].get('controls', []):
+            assert logs.get(control['fieldName']) == 'keyword'
         query = json.loads(obj['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])['query']['query']
         for name in re.findall(r'([A-Za-z_.@]+)\s*:', query):
             assert name in fields
-    assert {f for _, f in used} == {'@timestamp', 'log.level', 'event.outcome', 'source.ip'}
+    assert {'@timestamp', 'log.level', 'event.outcome', 'source.ip', 'user.name', 'hour_of_day', 'day_of_week',
+            'source.geo.country_iso_code', 'alert.severity', 'rule.name'} <= set(used)
+
+
+def test_runtime_fields_are_painless_on_local_time_and_shared_with_the_data_view_file():
+    view = next(o for o in objects() if o['id'] == kibana.DATA_VIEW_ID)
+    assert json.loads(view['attributes']['runtimeFieldMap']) == kibana.RUNTIME_FIELDS
+    created = json.loads((ROOT / 'ingestion' / 'kibana' / 'data-view.json').read_text(encoding='utf-8'))['data_view']
+    assert created['runtimeFieldMap'] == kibana.RUNTIME_FIELDS
+    for spec in kibana.RUNTIME_FIELDS.values():
+        assert "ZoneId.of('Africa/Tunis')" in spec['script']['source'] and 'emit(' in spec['script']['source']
+
+
+def test_alerts_template_and_data_view_are_installed_by_the_init_containers():
+    c = yaml.safe_load((ROOT / 'docker-compose.yml').read_text(encoding='utf-8'))['services']
+    assert c['elasticsearch-init']['environment']['ALERTS_TEMPLATE_FILE'] == '/setup/alerts-template.json'
+    assert 'campusguard-alerts' in (ROOT / 'scripts' / 'setup-index.sh').read_text(encoding='utf-8')
+    assert any('data-view-alerts.json' in v for v in c['kibana-init']['volumes'])
+    script = (ROOT / 'scripts' / 'setup-kibana.sh').read_text(encoding='utf-8')
+    assert 'courier:ignoreFilterIfFieldNotInIndex' in script and 'ALERTS_DATA_VIEW_FILE' in script
 
 
 def test_data_view_matches_the_one_created_by_the_init_container():

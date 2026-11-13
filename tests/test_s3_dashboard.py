@@ -3,18 +3,19 @@ from app.services.prefs import WIDGETS
 
 
 def test_defaults_show_every_widget(analyst):
-    assert analyst.get('/api/dashboard/prefs').get_json()['widgets'] == {w: True for w in WIDGETS}
+    body = analyst.get('/api/dashboard/prefs').get_json()
+    assert body['widgets'] == {w: True for w in WIDGETS} and body['period'] == '24h'
 
 
 def test_hide_and_restore_a_widget_persists_in_mongodb(analyst, stores):
-    res = analyst.client.put('/api/dashboard/prefs', json={'widgets': {'timeline': False}}, headers={'X-CSRF-Token': analyst.csrf})
-    assert res.status_code == 200 and res.get_json()['widgets']['timeline'] is False
-    assert stores.db.dashboard_prefs.find_one({'username': 'analyste'})['widgets']['timeline'] is False
+    res = analyst.client.put('/api/dashboard/prefs', json={'widgets': {'health': False}}, headers={'X-CSRF-Token': analyst.csrf})
+    assert res.status_code == 200 and res.get_json()['widgets']['health'] is False
+    assert stores.db.dashboard_prefs.find_one({'username': 'analyste'})['widgets']['health'] is False
     assert analyst.get('/api/dashboard/prefs').get_json()['widgets']['kpis'] is True
     html = analyst.get('/').get_data(as_text=True)
-    assert 'id="chart-timeline"' not in html and 'id="chart-levels"' in html
+    assert '<h2>Santé de la plateforme</h2>' not in html and '<h2>IP à examiner en priorité</h2>' in html
     reset = analyst.delete('/api/dashboard/prefs')
-    assert reset.get_json()['widgets']['timeline'] is True
+    assert reset.get_json()['widgets']['health'] is True
     assert stores.db.dashboard_prefs.count_documents({'username': 'analyste'}) == 0
 
 
@@ -26,7 +27,7 @@ def test_preferences_are_per_user(make_session):
 
 def test_invalid_preferences_are_rejected(analyst):
     h = {'X-CSRF-Token': analyst.csrf}
-    for body in ({'widgets': {'nope': True}}, {'widgets': {'kpis': 'yes'}}, {'widgets': {}}, {}):
+    for body in ({'widgets': {'nope': True}}, {'widgets': {'kpis': 'yes'}}, {'widgets': {}}, {}, {'period': '2y'}):
         res = analyst.client.put('/api/dashboard/prefs', json=body, headers=h)
         assert res.status_code == 400 and res.get_json()['error'] == 'invalid_parameters'
 
@@ -37,5 +38,5 @@ def test_put_requires_csrf_and_authentication(analyst, app):
 
 
 def test_auditor_can_customise_own_view(auditor):
-    res = auditor.client.put('/api/dashboard/prefs', json={'widgets': {'searches': False}}, headers={'X-CSRF-Token': auditor.csrf})
+    res = auditor.client.put('/api/dashboard/prefs', json={'widgets': {'searches': False}, 'period': '7d'}, headers={'X-CSRF-Token': auditor.csrf})
     assert res.status_code == 200

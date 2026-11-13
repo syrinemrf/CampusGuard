@@ -229,10 +229,8 @@ def test_stats_api_returns_dashboard_figures_and_uses_mongo_upload_count(analyst
     assert sent['errors']['filter']['terms']['log.level'] == ['ERROR', 'CRITICAL']
 
 
-def test_home_page_embeds_chart_data_without_inline_script(analyst, stores):
-    stores.es.response = {'hits': {'total': {'value': 5}}, 'aggregations': {
-        'levels': {'buckets': [{'key': 'INFO', 'doc_count': 5}]}, 'services': {'buckets': []},
-        'today': {'doc_count': 1}, 'errors': {'doc_count': 0}, 'timeline': {'buckets': []}}}
+def test_home_page_no_longer_duplicates_kibana_charts(analyst, stores):
+    """The home page is the « centre de pilotage »; trend charts live in Kibana only (no Chart.js here)."""
     html = analyst.get('/').get_data(as_text=True)
-    assert 'id="chart-data"' in html and 'type="application/json"' in html and 'chart-levels' in html
-    assert 'Logs ERROR / CRITICAL' in html and 'Fichiers importés' in html
+    assert 'Centre de pilotage' in html and 'chart-timeline' not in html and 'chart.umd.js' not in html
+    assert 'Analyse approfondie dans Kibana' in html

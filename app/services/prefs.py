@@ -1,10 +1,13 @@
-"""Per-user dashboard customisation (which widgets are shown), stored in MongoDB ``dashboard_prefs``."""
+"""Per-user dashboard customisation (blocks shown + analysis period), stored in MongoDB ``dashboard_prefs``."""
 from datetime import datetime, timezone
 
-WIDGETS = ('kpis', 'timeline', 'levels', 'services', 'imports', 'searches')
+from app.services.overview import DEFAULT_PERIOD, PERIODS
+
+WIDGETS = ('kpis', 'priorities', 'health', 'imports', 'searches')
 WIDGET_LABELS = {
-    'kpis': 'Indicateurs clés', 'timeline': 'Événements dans le temps', 'levels': 'Répartition par niveau',
-    'services': 'Services les plus actifs', 'imports': 'Mes derniers imports', 'searches': 'Dernières recherches',
+    'kpis': 'Indicateurs d’authentification', 'priorities': 'IP à examiner en priorité',
+    'health': 'Santé de la plateforme et de l’ingestion', 'imports': 'Mes derniers imports',
+    'searches': 'Mes dernières recherches',
 }
 
 
@@ -16,24 +19,36 @@ class DashboardPrefs:
     def __init__(self, db):
         self.col = db.dashboard_prefs
 
+    def _doc(self, username):
+        return self.col.find_one({'username': username}) or {}
+
     def get(self, username):
-        doc = self.col.find_one({'username': username}) or {}
-        stored = doc.get('widgets', {})
+        stored = self._doc(username).get('widgets', {})
         return {w: bool(stored.get(w, True)) for w in WIDGETS}
 
-    def save(self, username, widgets):
-        if not isinstance(widgets, dict) or not widgets:
-            raise PrefsError('Objet « widgets » requis.')
-        unknown = sorted(set(widgets) - set(WIDGETS))
-        if unknown:
-            raise PrefsError('Widgets inconnus : ' + ', '.join(unknown))
-        if any(not isinstance(v, bool) for v in widgets.values()):
-            raise PrefsError('Chaque valeur doit être un booléen.')
-        merged = {**self.get(username), **widgets}
-        self.col.update_one({'username': username},
-                            {'$set': {'username': username, 'widgets': merged,
-                                      'updated_at': datetime.now(timezone.utc).isoformat()}}, upsert=True)
-        return merged
+    def period(self, username):
+        value = self._doc(username).get('period')
+        return value if value in PERIODS else DEFAULT_PERIOD
+
+    def save(self, username, widgets=None, period=None):
+        if widgets is None and period is None:
+            raise PrefsError('Objet « widgets » ou « period » requis.')
+        update = {'username': username, 'updated_at': datetime.now(timezone.utc).isoformat()}
+        if widgets is not None:
+            if not isinstance(widgets, dict) or not widgets:
+                raise PrefsError('Objet « widgets » requis.')
+            unknown = sorted(set(widgets) - set(WIDGETS))
+            if unknown:
+                raise PrefsError('Widgets inconnus : ' + ', '.join(unknown))
+            if any(not isinstance(v, bool) for v in widgets.values()):
+                raise PrefsError('Chaque valeur doit être un booléen.')
+            update['widgets'] = {**self.get(username), **widgets}
+        if period is not None:
+            if period not in PERIODS:
+                raise PrefsError('Période inconnue : ' + ', '.join(PERIODS) + ' attendu.')
+            update['period'] = period
+        self.col.update_one({'username': username}, {'$set': update}, upsert=True)
+        return self.get(username)
 
     def reset(self, username):
         self.col.delete_one({'username': username})

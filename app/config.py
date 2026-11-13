@@ -44,6 +44,8 @@ class Config:
     search_cache_ttl: int = field(default_factory=lambda: _int('SEARCH_CACHE_TTL', 30))
     export_max_rows: int = field(default_factory=lambda: _int('EXPORT_MAX_ROWS', 5000))
     kibana_public_url: str = _env('KIBANA_PUBLIC_URL', 'http://localhost:5601')
+    kibana_internal_url: str = field(default_factory=lambda: os.getenv('KIBANA_INTERNAL_URL', 'http://kibana:5601').rstrip('/'))
+    logstash_api_url: str = field(default_factory=lambda: os.getenv('LOGSTASH_API_URL', 'http://logstash:9600').rstrip('/'))
     api_rate_limit: int = field(default_factory=lambda: _int('API_RATE_LIMIT_PER_MIN', 300))
     ingest_stall_seconds: int = field(default_factory=lambda: _int('INGEST_STALL_SECONDS', 300))
     testing: bool = False

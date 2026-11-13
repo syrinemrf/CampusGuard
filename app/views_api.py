@@ -156,27 +156,43 @@ def event_detail(event_id):
 
 # ------------------------------------------------------------------ dashboard customisation
 
+def _prefs_body(prefs):
+    return jsonify(widgets=prefs.get(current_user.username), period=prefs.period(current_user.username))
+
+
 @bp.get('/dashboard/prefs')
 @roles_required()
 def get_dashboard_prefs():
-    return jsonify(widgets=DashboardPrefs(_stores().db).get(current_user.username))
+    return _prefs_body(DashboardPrefs(_stores().db))
 
 
 @bp.put('/dashboard/prefs')
 @roles_required()
 def put_dashboard_prefs():
     data = request.get_json(silent=True) or {}
+    prefs = DashboardPrefs(_stores().db)
     try:
-        widgets = DashboardPrefs(_stores().db).save(current_user.username, data.get('widgets'))
+        prefs.save(current_user.username, data.get('widgets'), data.get('period'))
     except PrefsError as exc:
         return error_response(400, 'invalid_parameters', str(exc))
-    return jsonify(widgets=widgets)
+    return _prefs_body(prefs)
 
 
 @bp.delete('/dashboard/prefs')
 @roles_required()
 def reset_dashboard_prefs():
-    return jsonify(widgets=DashboardPrefs(_stores().db).reset(current_user.username))
+    prefs = DashboardPrefs(_stores().db)
+    prefs.reset(current_user.username)
+    return _prefs_body(prefs)
+
+
+@bp.get('/overview')
+@roles_required()
+def overview():
+    """Data of the home page (« centre de pilotage ») for a period: 24h, 7d, 30d or 90d."""
+    from app.services.overview import OverviewService
+    period = request.args.get('period') or DashboardPrefs(_stores().db).period(current_user.username)
+    return jsonify(OverviewService(_stores(), _cfg(), http=current_app.extensions.get('sentinel_http')).build(period))
 
 
 # ------------------------------------------------------------------ OpenAPI + stable /api/v1 aliases

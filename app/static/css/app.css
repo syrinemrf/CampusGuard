@@ -39,3 +39,20 @@ tr.clickable{cursor:pointer}
 .custom{margin-bottom:14px}.custom summary{cursor:pointer;font-weight:600}.custom .checks{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 12px}
 .custom label{display:inline-flex;gap:6px;align-items:center}
 .kibana-frame{width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--bd);border-radius:12px;background:var(--sf)}
+
+/* S3 — centre de pilotage */
+.toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px}
+.toolbar .chips{margin-top:0}
+a.chip{display:inline-block}
+.kp em{display:block;margin-top:2px}
+.kp .row{gap:10px}
+.spark{width:120px;height:34px;flex:none}
+.mu{color:var(--mut)}
+.health{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:6px}
+.health li{display:flex;align-items:center;gap:8px}.health .pl{margin-left:auto}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--me)}.dot.err{background:var(--cr)}
+table.compact th,table.compact td{padding:5px 8px;font-size:13px}
+.sub a,.alert a,.plain a,p a{color:var(--ac);text-decoration:underline;text-underline-offset:2px}
+a.btn,a.chip,a.nv{text-decoration:none}
+.g21{align-items:start}
+@media(max-width:900px){.kp .row{flex-wrap:wrap}.spark{width:100%}.toolbar{align-items:flex-start}main{overflow-x:hidden}}

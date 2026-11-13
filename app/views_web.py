@@ -1,15 +1,17 @@
 """Server-rendered pages (Jinja2). Data loading is done by the JSON API via small JS files."""
-from flask import Blueprint, current_app, render_template
+from flask import Blueprint, current_app, render_template, request
 from flask_login import current_user
 
 from app.kibana import dashboard_url, discover_url
 from app.security import ROLE_ADMIN, ROLE_ANALYST, ROLE_LABELS, roles_required
+from app.services.overview import PERIODS, OverviewService, fmt_age
 from app.services.prefs import WIDGET_LABELS, DashboardPrefs
 from app.services.search import SearchService
 from app.services.uploads import UploadService
-from app.stores import ElasticError
 
 bp = Blueprint('web', __name__)
+SERVICE_NAMES = {'elasticsearch': 'Elasticsearch', 'mongodb': 'MongoDB', 'redis': 'Redis', 'logstash': 'Logstash',
+                 'kibana': 'Kibana', 'alert_worker': 'Worker d’alertes'}
 
 
 @bp.get('/')
@@ -17,17 +19,21 @@ bp = Blueprint('web', __name__)
 def home():
     stores = current_app.extensions['sentinel_stores']
     cfg = current_app.extensions['sentinel_config']
+    prefs = DashboardPrefs(stores.db)
+    period = request.args.get('period')
+    if period in PERIODS:
+        prefs.save(current_user.username, period=period)      # the chosen period is remembered (MongoDB)
+    else:
+        period = prefs.period(current_user.username)
+    overview = OverviewService(stores, cfg, http=current_app.extensions.get('sentinel_http')).build(period)
     search = SearchService(stores.db, stores.redis, stores.es, cfg)
     upload_service = UploadService(stores.db, stores.es, cfg)
-    stats, es_error = None, None
-    try:
-        stats = search.stats(upload_service.count_imported())
-    except ElasticError as exc:
-        es_error = str(exc)
-    return render_template('home.html', stats=stats, es_error=es_error,
+    return render_template('home.html', ov=overview, es_error=overview['es_error'], fmt_age=fmt_age,
                            uploads=upload_service.list(current_user, limit=5),
                            history=search.history(current_user, 5), page='home',
-                           widgets=DashboardPrefs(stores.db).get(current_user.username), widget_labels=WIDGET_LABELS)
+                           widgets=prefs.get(current_user.username), widget_labels=WIDGET_LABELS,
+                           kibana_url=dashboard_url(cfg.kibana_public_url),
+                           service_names=SERVICE_NAMES)
 
 
 @bp.get('/upload')
