@@ -18,6 +18,19 @@ class ElasticError(Exception):
         self.status = status
 
 
+def _reason(response):
+    """Short, useful cause of an Elasticsearch 400 (e.g. a syntax error in the user's query)."""
+    try:
+        error = response.json().get('error', {})
+        causes = error.get('root_cause') or [error]
+        reason = causes[0].get('reason') or ''
+        caused = (error.get('caused_by') or {}).get('reason') or ''
+        text = caused if caused and caused not in reason else reason
+        return f' : {text[:300]}' if text else ''
+    except (ValueError, AttributeError, IndexError, TypeError):
+        return ''
+
+
 class ElasticClient:
     """Tiny Elasticsearch HTTP client (search, count, ids lookup)."""
 
@@ -35,7 +48,7 @@ class ElasticClient:
         except requests.RequestException as exc:
             raise ElasticError(f'Elasticsearch injoignable : {exc.__class__.__name__}') from exc
         if response.status_code == 400:
-            raise ElasticError('Requête de recherche refusée par Elasticsearch.', status=400)
+            raise ElasticError('Requête refusée par Elasticsearch' + _reason(response) + '.', status=400)
         if response.status_code >= 400:
             raise ElasticError(f'Elasticsearch a répondu HTTP {response.status_code}.')
         try:

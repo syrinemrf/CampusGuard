@@ -4,13 +4,14 @@
   const form = document.getElementById('search-form');
   if (!form) return;
   const $ = (id) => document.getElementById(id);
-  const FIELDS = ['q', 'start', 'end', 'level', 'service', 'outcome', 'ip', 'user', 'upload_id', 'sort', 'sort_by'];
+  const FIELDS = ['q', 'start', 'end', 'level', 'service', 'outcome', 'ip', 'user', 'upload_id', 'query', 'dsl', 'sort', 'sort_by'];
   let page = 1;
   let pages = 1;
 
   function params(extra) {
     const p = new URLSearchParams();
-    FIELDS.forEach((f) => { const v = form.elements[f].value.trim(); if (v) p.set(f, v); });
+    const skip = mode() === 'dsl' ? 'query' : 'dsl';            // the hidden advanced mode is ignored
+    FIELDS.forEach((f) => { const v = form.elements[f].value.trim(); if (v && f !== skip) p.set(f, v); });
     Object.entries(extra || {}).forEach(([k, v]) => p.set(k, v));
     return p;
   }
@@ -19,7 +20,35 @@
     const p = new URLSearchParams(window.location.search);
     FIELDS.forEach((f) => { if (p.has(f)) form.elements[f].value = p.get(f); });
     page = Math.max(1, Number(p.get('page') || 1));
+    openAdvancedIfUsed();
   }
+
+  /* Advanced query (Lucene or Query DSL): only the visible mode is sent. */
+  const adv = $('advanced');
+  const mode = () => form.querySelector('input[name="adv_mode"]:checked').value;
+  function setMode(m) {
+    form.querySelector('input[name="adv_mode"][value="' + m + '"]').checked = true;
+    adv.querySelectorAll('[data-mode]').forEach((d) => d.classList.toggle('hidden', d.dataset.mode !== m));
+  }
+  function openAdvancedIfUsed() {
+    if (form.elements.dsl.value) { adv.open = true; setMode('dsl'); } else if (form.elements.query.value) { adv.open = true; setMode('query'); }
+  }
+  form.querySelectorAll('input[name="adv_mode"]').forEach((r) => r.addEventListener('change', () => setMode(mode())));
+  adv.querySelectorAll('[data-example]').forEach((b) => b.addEventListener('click', () => {
+    setMode(b.dataset.exampleMode);
+    const target = form.elements[b.dataset.exampleMode];
+    target.value = b.dataset.exampleMode === 'dsl' ? JSON.stringify(JSON.parse(b.dataset.example), null, 2) : b.dataset.example;
+    target.focus();
+  }));
+  adv.querySelectorAll('[data-field]').forEach((c) => c.addEventListener('click', () => {
+    const target = form.elements[mode()];
+    const insert = mode() === 'dsl' ? '"' + c.dataset.field + '"' : c.dataset.field + ':';
+    const at = target.selectionStart ?? target.value.length;
+    target.value = target.value.slice(0, at) + insert + target.value.slice(target.selectionEnd ?? at);
+    target.focus();
+    target.selectionStart = target.selectionEnd = at + insert.length;
+  }));
+  form.elements.query.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
 
   function option(select, items) {
     items.forEach((i) => select.append(el('option', { value: i.value, text: i.value + ' (' + i.count + ')' })));
@@ -38,10 +67,11 @@
     const { ok, data } = await api('/api/search/history?limit=5');
     if (!ok) return;
     $('history').replaceChildren(...data.history.map((h) => {
-      const label = h.filters.q || Object.keys(h.filters).join(', ');
+      const label = h.filters.q || h.filters.query || (h.filters.dsl ? 'DSL : ' + h.filters.dsl.slice(0, 40) : '') || Object.keys(h.filters).join(', ');
       return el('button', { class: 'chip', type: 'button', text: label, onclick: () => {
         FIELDS.forEach((f) => { form.elements[f].value = ''; });
         Object.entries(h.filters).forEach(([k, v]) => { if (form.elements[k]) form.elements[k].value = Array.isArray(v) ? v.join(',') : v; });
+        openAdvancedIfUsed();
         page = 1; run();
       } });
     }));
@@ -56,8 +86,12 @@
     body.replaceChildren();
     if (!ok) {
       $('status').textContent = (data.details ? data.details.join(' ') : data.message) || 'Erreur de recherche.';
+      $('status').classList.add('err-text');
       return;
     }
+    $('status').classList.remove('err-text');
+    $('es-query').textContent = JSON.stringify(data.es_query, null, 2);
+    $('es-query-box').classList.remove('hidden');
     pages = data.pages;
     $('status').textContent = data.total.toLocaleString('fr-FR') + (data.total_exact ? '' : '+') + ' événement(s)' +
       (data.cached ? ' · résultat en cache (≤ 30 s)' : '') + ' · ' + (data.took_ms ?? '?') + ' ms';
@@ -126,7 +160,7 @@
     page = 1; run();
   }));
   form.addEventListener('submit', (e) => { e.preventDefault(); page = 1; run(); });
-  $('reset-btn').addEventListener('click', () => { setTimeout(() => { page = 1; history.replaceState(null, '', location.pathname); $('status').textContent = 'Lancez une recherche.'; document.querySelector('#results tbody').replaceChildren(); }, 0); });
+  $('reset-btn').addEventListener('click', () => { setTimeout(() => { page = 1; history.replaceState(null, '', location.pathname); $('status').textContent = 'Lancez une recherche.'; document.querySelector('#results tbody').replaceChildren(); setMode('query'); $('es-query-box').classList.add('hidden'); }, 0); });
   $('prev').addEventListener('click', () => { if (page > 1) { page -= 1; run(); } });
   $('next').addEventListener('click', () => { if (page < pages) { page += 1; run(); } });
   $('prev').disabled = true; $('next').disabled = true;

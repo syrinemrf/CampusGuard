@@ -74,7 +74,7 @@ Une adresse bloquée reçoit `403 {"error": "ip_blocked", "until": …}` sur tou
 
 ### Paramètres de recherche
 
-`q` (texte libre), `start` / `end` (UTC, date seule = journée entière), `level`, `service` (listes séparées par des virgules), `outcome` (`success|failure|unknown`), `ip` (adresse ou CIDR), `user`, `upload_id`, `sort_by` (`timestamp|level|service`), `sort` (`asc|desc`), `page`, `size` (≤ 100, fenêtre `page × size` ≤ 10 000). Toute valeur invalide renvoie `400` avec le détail par champ. Les résultats sont mis en cache 30 s dans Redis (`nocache=1` pour contourner ; le champ `cached` l'indique).
+`q` (texte libre), `query` (requête avancée Lucene, ex. `event.outcome:failure AND NOT user.name:admin`), `dsl` (requête avancée en Query DSL JSON, clauses sûres uniquement : scripts, `function_score`, `wrapper` et recherches dans d’autres index refusés), `start` / `end` (UTC, date seule = journée entière), `level`, `service` (listes séparées par des virgules), `outcome` (`success|failure|unknown`), `ip` (adresse ou CIDR), `user`, `upload_id`, `sort_by` (`timestamp|level|service`), `sort` (`asc|desc`), `page`, `size` (≤ 100, fenêtre `page × size` ≤ 10 000). Toute valeur invalide renvoie `400` avec le détail par champ ; une erreur de syntaxe dans `query` renvoie la cause donnée par Elasticsearch. La réponse contient `es_query`, la requête réellement exécutée. Les résultats sont mis en cache 30 s dans Redis (`nocache=1` pour contourner ; le champ `cached` l'indique).
 
 ## Exemple
 

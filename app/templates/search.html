@@ -13,6 +13,38 @@
     <div class="field"><label for="outcome">Résultat</label><select class="in" id="outcome" name="outcome"><option value="">Tous</option><option>success</option><option>failure</option><option>unknown</option></select></div>
     <div class="field"><label for="ip">IP / CIDR</label><input class="in" id="ip" name="ip" placeholder="203.0.113.50"></div>
     <div class="field"><label for="user">Utilisateur</label><input class="in" id="user" name="user"></div>
+    <details class="advanced wide-all" id="advanced">
+      <summary>Requête avancée (syntaxe Elasticsearch) <small class="mu">— combinée avec les filtres ci-dessus (ET)</small></summary>
+      <div class="adv-modes" role="radiogroup" aria-label="Syntaxe de la requête">
+        <label><input type="radio" name="adv_mode" value="query" checked> Lucene <small class="mu">(comme la barre Kibana)</small></label>
+        <label><input type="radio" name="adv_mode" value="dsl"> Query DSL <small class="mu">(JSON)</small></label>
+      </div>
+      <div data-mode="query">
+        <label for="query" class="visually-hidden">Requête Lucene</label>
+        <textarea class="in mono area" id="query" name="query" rows="2" maxlength="1000" spellcheck="false"
+          placeholder='event.outcome:failure AND source.ip:"203.0.113.0/24" AND NOT user.name:admin'></textarea>
+        <p class="sub small">Opérateurs <code>AND</code> <code>OR</code> <code>NOT</code>, parenthèses, <code>champ:valeur</code>, <code>"expression exacte"</code>,
+          intervalles <code>destination.port:[1 TO 1024]</code>, <code>@timestamp:[now-1d TO now]</code>, joker <code>user.name:adm*</code>, existence <code>_exists_:source.geo.country_iso_code</code>.
+          Sans champ, la recherche porte sur <code>message</code>.</p>
+      </div>
+      <div data-mode="dsl" class="hidden">
+        <label for="dsl" class="visually-hidden">Requête Query DSL (JSON)</label>
+        <textarea class="in mono area" id="dsl" name="dsl" rows="7" maxlength="4000" spellcheck="false"
+          placeholder='{"bool": {"filter": [{"term": {"event.outcome": "failure"}}, {"range": {"@timestamp": {"gte": "now-7d"}}}], "must_not": [{"term": {"user.name": "admin"}}]}}'></textarea>
+        <p class="sub small">Une clause de requête Elasticsearch (le contenu de <code>"query"</code>, ou l’objet <code>{"query": …}</code> copié de Kibana Dev Tools).
+          Autorisées : <code>bool</code>, <code>term(s)</code>, <code>match</code>, <code>range</code>, <code>exists</code>, <code>wildcard</code>, <code>regexp</code>, <code>prefix</code>, <code>query_string</code>…
+          Refusées pour la sécurité : scripts, <code>function_score</code>, <code>wrapper</code>, recherches dans d’autres index.</p>
+      </div>
+      <div class="chips" aria-label="Exemples">
+        <span class="sub small">Exemples :</span>
+        <button class="chip" type="button" data-example-mode="query" data-example='event.outcome:failure AND NOT source.ip:"192.0.2.0/24"'>échecs hors réseau interne</button>
+        <button class="chip" type="button" data-example-mode="query" data-example='event.action:(sudo OR role_change) OR message:"COMMAND=/bin/su"'>élévations de privilèges</button>
+        <button class="chip" type="button" data-example-mode="query" data-example='_exists_:source.geo.country_iso_code AND NOT source.geo.country_iso_code:(TN OR FR)'>connexions hors TN/FR</button>
+        <button class="chip" type="button" data-example-mode="dsl" data-example='{"bool": {"filter": [{"term": {"event.outcome": "failure"}}, {"terms": {"service.name": ["sshd", "authentication"]}}], "must": [{"match_phrase": {"message": "failed password"}}]}}'>DSL : échecs SSH</button>
+        <button class="chip" type="button" data-example-mode="dsl" data-example='{"bool": {"filter": [{"range": {"destination.port": {"lte": 1024}}}], "must_not": [{"term": {"event.outcome": "success"}}]}}'>DSL : ports systèmes refusés</button>
+      </div>
+      <p class="sub small">Champs interrogeables : {% for f in fields %}<code class="field-chip" data-field="{{ f }}" title="Insérer">{{ f }}</code>{{ ' ' }}{% endfor %}</p>
+    </details>
     <input type="hidden" id="sort" name="sort" value="desc"><input type="hidden" id="sort_by" name="sort_by" value="timestamp">
     <input type="hidden" id="upload_id" name="upload_id">
     <div class="actions"><button class="btn p" type="submit">Rechercher</button><button class="btn" type="reset" id="reset-btn">Réinitialiser</button><a class="btn" id="export-link" href="#">Exporter CSV</a></div>
@@ -21,6 +53,7 @@
 </section>
 <section class="cd">
   <div id="status" class="sub" aria-live="polite">Lancez une recherche.</div>
+  <details class="es-query hidden" id="es-query-box"><summary>Requête Elasticsearch exécutée</summary><pre class="raw" id="es-query"></pre></details>
   <div class="tw"><table id="results"><thead><tr><th aria-sort="none"><button class="thbtn" type="button" data-sort="timestamp">Date / heure (UTC)</button></th><th aria-sort="none"><button class="thbtn" type="button" data-sort="level">Niveau</button></th><th aria-sort="none"><button class="thbtn" type="button" data-sort="service">Service</button></th><th>IP</th><th>Utilisateur</th><th>Résultat</th><th>Message</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
   <nav class="pager" aria-label="Pagination"><button class="btn s" id="prev" type="button">Précédent</button><span id="page-info"></span><button class="btn s" id="next" type="button">Suivant</button></nav>
 </section>

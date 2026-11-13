@@ -103,3 +103,14 @@ button.nv{text-align:left;text-decoration:none}
 .alerts-table td.nowrap,.alerts-table td.when{white-space:nowrap}.alerts-table td.nowrap .btn{display:block;width:100%;margin-bottom:6px}
 .toprules{list-style:none;padding-left:0}.toprules li i{font-style:normal;color:var(--mut);min-width:22px}
 .row-actions{display:flex;flex-direction:column;gap:6px;margin-top:8px;align-items:flex-start}.alerts-table td.msg{min-width:240px}
+
+/* Requête avancée de l'explorateur */
+.filters .wide-all{grid-column:1/-1}
+details.advanced{border:1px dashed var(--bd);border-radius:10px;padding:10px 12px}
+details.advanced summary{cursor:pointer;font-weight:600}
+.adv-modes{display:flex;gap:18px;margin:10px 0 8px;flex-wrap:wrap}.adv-modes label{display:inline-flex;gap:6px;align-items:center}
+textarea.mono{font:13px/1.45 ui-monospace,Consolas,monospace}
+.field-chip{cursor:pointer;border:1px solid var(--bd);border-radius:6px;padding:0 5px;background:var(--sf2)}
+.field-chip:hover{border-color:var(--ac);color:var(--ac)}
+.err-text{color:var(--cr)}
+.es-query{margin-bottom:10px}.es-query summary{cursor:pointer;font-size:13px;color:var(--mut)}

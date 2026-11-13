@@ -47,7 +47,8 @@ def upload():
 @bp.get('/search')
 @roles_required()
 def search_page():
-    return render_template('search.html', page='search')
+    from app.services.search import SEARCHABLE_FIELDS
+    return render_template('search.html', page='search', fields=SEARCHABLE_FIELDS)
 
 
 @bp.get('/kibana')
