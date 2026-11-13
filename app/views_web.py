@@ -2,7 +2,7 @@
 from flask import Blueprint, current_app, render_template, request
 from flask_login import current_user
 
-from app.kibana import dashboard_url, discover_url
+from app.kibana import DASHBOARDS, dashboard_url, discover_url
 from app.security import ROLE_ADMIN, ROLE_ANALYST, ROLE_LABELS, roles_required
 from app.services.overview import PERIODS, OverviewService, fmt_age
 from app.services.prefs import WIDGET_LABELS, DashboardPrefs
@@ -55,8 +55,12 @@ def search_page():
 @roles_required()
 def kibana_page():
     base = current_app.extensions['sentinel_config'].kibana_public_url
-    return render_template('kibana.html', page='kibana', embed_url=dashboard_url(base, embed=True),
-                           open_url=dashboard_url(base), discover_url=discover_url(base))
+    tab = request.args.get('tab') if request.args.get('tab') in DASHBOARDS else 'overview'
+    dash_id = DASHBOARDS[tab][0]
+    tabs = [{'key': k, 'label': label} for k, (_id, label) in DASHBOARDS.items()]
+    return render_template('kibana.html', page='kibana', tabs=tabs, tab=tab,
+                           embed_url=dashboard_url(base, embed=True, dashboard_id=dash_id),
+                           open_url=dashboard_url(base, dashboard_id=dash_id), discover_url=discover_url(base))
 
 
 @bp.get('/api/docs')

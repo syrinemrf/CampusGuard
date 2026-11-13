@@ -152,7 +152,7 @@ def test_services_down_are_reported_not_hidden(analyst, stores, app):
 def test_home_page_renders_kpis_priorities_and_health(analyst, stores, http):
     stores.es.responses = [AUTH, FRESH]
     html = analyst.get('/?period=24h').get_data(as_text=True)
-    assert 'Échecs d’authentification · 24 heures' in html and '+100 %' in html and '60.0 %' in html
+    assert 'Échecs de connexion' in html and '+100 %' in html and '60.0 %' in html
     assert '203.0.113.50' in html and '5 comptes' in html and 'ip=203.0.113.50&amp;outcome=failure' in html
     assert 'Pipelines Logstash' in html and 'csv-security' in html and 'Pare-feu (CSV)' in html
     assert '<polyline points=' in html and '<script>' not in html

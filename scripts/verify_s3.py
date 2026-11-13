@@ -4,7 +4,7 @@
     python scripts/verify_s3.py --kibana-url http://localhost:5601 \\
         [--app-url http://localhost:8000 --username analyste --password '<mdp>'] [--evidence docs/evidence/s3-verify-result.json]
 
-Checks: Kibana is up, the 2 data views + 12 visualizations + dashboard exist and reference each other, the dashboard
+Checks: Kibana is up, the 2 data views + visualizations + 3 themed dashboards exist and reference each other, the dashboard
 can be exported and re-imported (round trip), Kibana allows embedding in an iframe, the visualizations' fields
 exist in the live index mapping, and (optionally) the web app serves the embedded dashboard page.
 Exit code 0 only if every check passes. Nothing is mocked.
@@ -20,7 +20,7 @@ import pathlib
 import requests
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from app.kibana import ALERTS_DATA_VIEW_ID, DASHBOARD_ID as DASHBOARD, RUNTIME_FIELDS, VISUALIZATION_IDS  # noqa: E402
+from app.kibana import ALERTS_DATA_VIEW_ID, DASHBOARD_ID as DASHBOARD, DASHBOARDS, RUNTIME_FIELDS, VISUALIZATION_IDS  # noqa: E402
 
 VIS = list(VISUALIZATION_IDS.values())
 UNREACHABLE = """La stack n'est pas joignable sur {url} (connexion refusée). Démarrez Docker Desktop, attendez « Engine running », puis : docker compose up -d --build --wait --wait-timeout 600 et docker compose ps (tout « healthy »). Aucune preuve n'est écrite."""
@@ -83,16 +83,21 @@ def main():
         found[vid] = r.status_code == 200
     check(f'{len(VIS)} visualisations présentes', all(found.values()),
           ', '.join(f"{k.split('sentinel-vis-')[1]}={'ok' if v else 'ABSENT'}" for k, v in found.items()))
-    r = requests.get(f'{kb}/api/saved_objects/dashboard/{DASHBOARD}', timeout=15)
-    dash_ok = r.status_code == 200
-    refs = {x['id'] for x in r.json().get('references', [])} if dash_ok else set()
-    check(f'Dashboard présent et relié aux {len(VIS)} visualisations', dash_ok and refs == set(VIS), f'HTTP {r.status_code} références={len(refs)}')
+    refs, missing = set(), []
+    for dash_id, label in DASHBOARDS.values():
+        r = requests.get(f'{kb}/api/saved_objects/dashboard/{dash_id}', timeout=15)
+        if r.status_code == 200:
+            refs |= {x['id'] for x in r.json().get('references', [])}
+        else:
+            missing.append(label)
+    check(f'{len(DASHBOARDS)} dashboards thématiques présents et reliés aux {len(VIS)} visualisations',
+          not missing and refs == set(VIS), f'absents : {missing}' if missing else f'références={len(refs)}')
 
     r = requests.post(f'{kb}/api/saved_objects/_export', headers=hdr, timeout=30,
-                      json={'objects': [{'type': 'dashboard', 'id': DASHBOARD}], 'includeReferencesDeep': True})
+                      json={'objects': [{'type': 'dashboard', 'id': d} for d, _ in DASHBOARDS.values()], 'includeReferencesDeep': True})
     lines = [json.loads(x) for x in r.text.splitlines() if x.strip()] if r.status_code == 200 else []
     objs = [x for x in lines if 'type' in x]
-    check('Export du dashboard (dépendances comprises)', r.status_code == 200 and len(objs) >= len(VIS) + 3, f'HTTP {r.status_code} objets={len(objs)}')
+    check('Export des dashboards (dépendances comprises)', r.status_code == 200 and len(objs) >= len(VIS) + len(DASHBOARDS) + 2, f'HTTP {r.status_code} objets={len(objs)}')
     if objs:
         payload = ''.join(json.dumps(o) + '\n' for o in objs)
         r = requests.post(f'{kb}/api/saved_objects/_import?overwrite=true', headers=hdr, timeout=60,

@@ -1,17 +1,18 @@
 <!doctype html>
-<html lang="fr" data-theme="light">
+<html lang="fr" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Connexion · Sentinel</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sentinel.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/identity.css') }}">
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body>
 <div class="lgn">
   <form class="cd" method="post" action="{{ url_for('auth.login', next=next or None) }}">
-    <h1 class="login-title">CampusGuard · Sentinel</h1>
+    <div class="login-brand"><svg viewBox="0 0 28 28" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18d6c8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><path d="M14 2l10 4v8c0 6-4.2 10.4-10 12C8.2 24.4 4 20 4 14V6z" fill="url(#lg)"/><path d="M9.5 14l3.2 3.2L18.5 11" fill="none" stroke="#05101a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><div><b>Sentinel</b><div class="sub small">CampusGuard · surveillance de sécurité</div></div></div>
     <p class="sub">Connexion à la plateforme de laboratoire. Les comptes sont créés par un administrateur.</p>
     {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert {{ category }}" role="status">{{ message }}</div>{% endfor %}{% endwith %}
     {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}

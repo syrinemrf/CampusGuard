@@ -34,13 +34,13 @@ window.Sentinel = (function () {
 
   // Theme (per-viewer convenience only; works without storage).
   const root = document.documentElement;
-  try { const t = localStorage.getItem('sentinel-theme'); if (t) root.setAttribute('data-theme', t); } catch (e) { /* ignore */ }
+  try { const t = localStorage.getItem('sentinel-theme-v2'); if (t) root.setAttribute('data-theme', t); } catch (e) { /* ignore */ }
   document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('theme-toggle');
     if (btn) btn.addEventListener('click', () => {
       const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       root.setAttribute('data-theme', next);
-      try { localStorage.setItem('sentinel-theme', next); } catch (e) { /* ignore */ }
+      try { localStorage.setItem('sentinel-theme-v2', next); } catch (e) { /* ignore */ }
     });
   });
 

@@ -16,8 +16,6 @@
   </nav>
   <a class="btn s" href="{{ kibana_url }}" target="_blank" rel="noopener">Analyse approfondie dans Kibana ↗</a>
 </div>
-<p class="sub">Ce qui demande une action maintenant, comparé à la période précédente de même durée. Les tendances longues,
-  les motifs horaires et l’exploration libre sont dans le <a href="{{ url_for('web.kibana_page') }}">dashboard Kibana</a>.</p>
 {% if es_error %}<div class="alert err" role="alert">Elasticsearch indisponible : {{ es_error }}</div>{% endif %}
 <details class="cd custom" id="customize">
   <summary>Personnaliser mon centre de pilotage</summary>
@@ -35,7 +33,7 @@
 
 {% if widgets.kpis and a %}{% set k = a.kpis %}
 <div class="g g4">
-  <div class="cd sh kp"><span>Échecs d’authentification · {{ a.period_label }}</span>
+  <div class="cd sh kp"><span>Échecs de connexion</span>
     <div class="row"><div><b>{{ '{:,}'.format(k.failures.value).replace(',', ' ') }}</b>{{ delta(k.failures) }}</div>
       {% if a.spark|length > 1 %}<svg class="spark" viewBox="0 0 120 34" role="img" aria-label="Évolution des échecs sur la période"><polyline points="{{ spark(a.spark) }}" fill="none" stroke="var(--cr)" stroke-width="2" stroke-linejoin="round"/></svg>{% endif %}</div></div>
   <div class="cd sh kp"><span>Taux de réussite des connexions</span>
@@ -48,6 +46,7 @@
 </div>
 {% endif %}
 
+<div class="g g2 duo">
 {% if widgets.alerts %}{% set SEV = {'low': 'lo', 'medium': 'me2', 'high': 'hi', 'critical': 'cr'} %}{% set SEVL = {'low': 'faible', 'medium': 'moyenne', 'high': 'haute', 'critical': 'critique'} %}
 <section class="cd alerts-strip {% if ov.alerts_open %}has{% endif %}">
   <div class="strip-h"><h2>Alertes à traiter</h2>
@@ -57,41 +56,42 @@
     <a href="{{ url_for('alerts.alerts_page') }}#alert-{{ a.id }}">{{ a.rule_name }}</a> — <span class="mono">{{ a.group }}</span> <small class="mu">({{ a.count }} évén.{{ ', prise en compte' if a.status == 'acknowledged' }})</small></li>{% endfor %}
     {% if ov.alerts_open_total > 5 %}<li class="sub">… et {{ ov.alerts_open_total - 5 }} autre(s).</li>{% endif %}</ul>{% endif %}
 </section>{% endif %}
-
-{% if widgets.priorities or widgets.health %}<div class="g g21">
   {% if widgets.priorities %}<section class="cd">
     <h2>IP à examiner en priorité</h2>
-    <p class="sub">Les 5 adresses avec le plus d’échecs sur {{ a.period_label if a else 'la période' }}. Une IP qui vise plusieurs comptes évoque du <i>credential stuffing</i> ; beaucoup d’échecs sur un seul compte, de la force brute.</p>
-    {% if a and a.top_ips %}<div class="tw"><table><thead><tr><th>IP source</th><th>Échecs</th><th>Comptes visés</th><th>Pays</th><th>Dernier (UTC)</th><th></th></tr></thead><tbody>
+    <p class="sub">Plusieurs comptes visés par une même IP : <i>credential stuffing</i>. Beaucoup d’échecs sur un seul compte : force brute. Cliquez une IP pour voir ses événements.</p>
+    {% if a and a.top_ips %}<div class="tw"><table><thead><tr><th>IP source</th><th>Échecs</th><th>Comptes</th><th>Pays</th><th>Dernier (UTC)</th></tr></thead><tbody>
       {% for ip in a.top_ips %}<tr>
-        <td class="mono">{{ ip.ip }}{% if ip.ip in ov.blocked_ips %} <span class="pl cr">bloquée</span>{% endif %}</td><td><b>{{ ip.failures }}</b></td>
+        <td class="mono"><a class="iplink" href="{{ url_for('web.search_page') }}?ip={{ ip.ip|urlencode }}&amp;outcome=failure">{{ ip.ip }}</a>{% if ip.ip in ov.blocked_ips %} <span class="pl cr">bloquée</span>{% endif %}</td><td><b>{{ ip.failures }}</b></td>
         <td>{% if ip.users > 1 %}<span class="pl hi">{{ ip.users }} comptes</span>{% else %}{{ ip.users }}{% endif %}</td>
-        <td>{{ ip.country or '—' }}</td><td class="nowrap">{{ (ip.last or '—')[5:16].replace('T', ' ') }}</td>
-        <td><a class="btn s" href="{{ url_for('web.search_page') }}?ip={{ ip.ip|urlencode }}&amp;outcome=failure">Examiner</a></td></tr>{% endfor %}
+        <td>{{ ip.country or '—' }}</td><td class="nowrap">{{ (ip.last or '—')[5:16].replace('T', ' ') }}</td></tr>{% endfor %}
     </tbody></table></div>
     {% elif a %}<p class="sub">Aucun échec d’authentification sur la période. 👍</p>{% endif %}
     <p class="sub small">Pays absent : adresse privée ou de documentation (RFC 5737), sans géolocalisation possible.</p>
   </section>{% endif %}
-  {% if widgets.health %}<section class="cd">
-    <h2>Santé de la plateforme</h2>
-    <p class="sub">Mesurée à l’instant (cache 30 s).</p>
+</div>
+
+{% if widgets.health %}<section class="cd block">
+  <h2>Santé de la plateforme</h2>
+  <div class="health-grid">
+  <div><h3>Services</h3>
     <ul class="health">{% for name, state in ov.health.services.items() %}
       <li><i class="dot {{ 'ok' if state == 'ok' else ('warn' if state == 'degraded' else 'err') }}" aria-hidden="true"></i>{{ service_names.get(name, name) }}
         <span class="pl {{ 'ok' if state == 'ok' else ('me2' if state == 'degraded' else 'cr') }}">{{ {'ok': 'opérationnel', 'degraded': 'dégradé', 'error': 'injoignable'}[state] }}</span></li>{% endfor %}
     </ul>
     <p class="sub small">Worker d’alertes : {% if ov.worker %}<span class="pl ok">actif</span> dernier cycle {{ ov.worker.at[11:19] }} UTC ({{ ov.worker.rules }} règles){% else %}<span class="pl cr">aucun cycle récent</span>{% endif %}</p>
-    {% if ov.health.pipelines %}<h3>Pipelines Logstash (depuis le démarrage)</h3>
+  </div>
+  <div>{% if ov.health.pipelines %}<h3>Pipelines Logstash</h3>
     <div class="tw"><table class="compact"><thead><tr><th>Pipeline</th><th>Reçus</th><th>Indexés / écrits</th></tr></thead><tbody>
-      {% for p in ov.health.pipelines %}<tr><td>{{ p.name }}</td><td>{{ p['in'] }}</td><td>{{ p.out }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
-    {% if fr and fr.sources %}<h3>Fraîcheur des sources</h3>
+      {% for p in ov.health.pipelines %}<tr><td>{{ p.name }}</td><td>{{ p['in'] }}</td><td>{{ p.out }}</td></tr>{% endfor %}</tbody></table></div><p class="sub small">Depuis le démarrage de Logstash.</p>{% endif %}</div>
+  <div>{% if fr and fr.sources %}<h3>Fraîcheur des sources</h3>
     <div class="tw"><table class="compact"><thead><tr><th>Source</th><th>Dernier événement</th><th>24 h</th></tr></thead><tbody>
       {% for s in fr.sources %}<tr><td>{{ s.label }}</td><td>il y a {{ fmt_age(s.age_seconds) }}</td><td>{{ s.last24h }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
-    <h3>Qualité des données</h3>
+  <h3 class="mt">Qualité des données</h3>
     <p class="sub">{% if ov.rejected_total %}<span class="pl me2">{{ ov.rejected_total }} ligne(s) rejetée(s)</span> par Logstash
       ({% for r in ov.rejected %}{{ r.file }} : {{ r.lines }}{{ ', ' if not loop.last }}{% endfor %}).{% else %}<span class="pl ok">aucune ligne rejetée</span>{% endif %}
-      {% if ov.imports_to_check %}<br>Imports à vérifier : {% for i in ov.imports_to_check %}{{ i.name }} ({{ 'partiel' if i.state == 'partial' else 'échec' }}){{ ', ' if not loop.last }}{% endfor %} — <a href="{{ url_for('web.upload') }}">voir</a>.{% endif %}</p>
-  </section>{% endif %}
-</div>{% endif %}
+      {% if ov.imports_to_check %}<br>Imports à vérifier : {% for i in ov.imports_to_check %}{{ i.name }} ({{ 'partiel' if i.state == 'partial' else 'échec' }}){{ ', ' if not loop.last }}{% endfor %} — <a href="{{ url_for('web.upload') }}">voir</a>.{% endif %}</p></div>
+  </div>
+</section>{% endif %}
 
 {% if widgets.imports or widgets.searches %}<div class="g g2">
   {% if widgets.imports %}<section class="cd"><h2>Mes derniers imports</h2><p class="sub">Les 5 plus récents. <a href="{{ url_for('web.upload') }}">Envoyer un fichier</a></p>

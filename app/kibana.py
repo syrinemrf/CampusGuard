@@ -3,22 +3,29 @@ from urllib.parse import quote, urlparse
 
 DATA_VIEW_ID = 'campusguard-logs'
 ALERTS_DATA_VIEW_ID = 'campusguard-alerts'
-DASHBOARD_ID = 'sentinel-security-overview'
-# The 4 S3 visualizations keep their ids (3 required + 1 indicator); the others make the dashboard an
-# analysis tool (patterns, targets, geography, alerts) instead of a copy of the home page.
+DASHBOARD_ID = 'sentinel-security-overview'          # main dashboard (kept id: earlier exports stay importable)
+# Three themed dashboards, each readable on one landscape screen. Key -> (id, tab label).
+DASHBOARDS = {
+    'overview': (DASHBOARD_ID, 'Vue d’ensemble'),
+    'threats': ('sentinel-auth-threats', 'Menaces sur l’authentification'),
+    'alerts': ('sentinel-alerts-overview', 'Alertes'),
+}
 VISUALIZATION_IDS = {
-    'guide': 'sentinel-vis-guide',
-    'controls': 'sentinel-vis-controls',
-    'total': 'sentinel-vis-total-events',
-    'outcome': 'sentinel-vis-outcome-split',
-    'failure_share': 'sentinel-vis-failure-share',
-    'heatmap': 'sentinel-vis-failures-heatmap',
+    # vue d'ensemble
+    'm_events': 'sentinel-vis-total-events', 'm_failures': 'sentinel-vis-metric-failures',
+    'm_fail_ips': 'sentinel-vis-metric-failing-ips', 'm_users': 'sentinel-vis-metric-targeted-users',
+    'm_alerts': 'sentinel-vis-metric-alerts', 'activity': 'sentinel-vis-activity-by-outcome',
+    'outcome': 'sentinel-vis-outcome-split', 'timeline': 'sentinel-vis-events-over-time',
     'top_ips': 'sentinel-vis-top-failing-ips',
-    'top_users': 'sentinel-vis-top-targeted-users',
-    'timeline': 'sentinel-vis-events-over-time',
-    'countries': 'sentinel-vis-failure-countries',
-    'alerts_severity': 'sentinel-vis-alerts-severity',
-    'alerts_timeline': 'sentinel-vis-alerts-over-time',
+    # menaces
+    'heatmap': 'sentinel-vis-failures-heatmap', 'failure_share': 'sentinel-vis-failure-share',
+    'top_users': 'sentinel-vis-top-targeted-users', 'countries': 'sentinel-vis-failure-countries',
+    'services': 'sentinel-vis-failures-by-service',
+    # alertes
+    'a_total': 'sentinel-vis-metric-alerts-total', 'a_critical': 'sentinel-vis-metric-alerts-critical',
+    'a_blocked': 'sentinel-vis-metric-ip-blocks', 'a_rules': 'sentinel-vis-metric-rules-fired',
+    'alerts_timeline': 'sentinel-vis-alerts-over-time', 'alerts_severity': 'sentinel-vis-alerts-severity',
+    'alerts_rules': 'sentinel-vis-alerts-top-rules', 'alerts_targets': 'sentinel-vis-alerts-top-targets',
 }
 TIMEZONE = 'Africa/Tunis'
 # Runtime fields of the data view (computed at query time, nothing re-indexed): hour of day and weekday in local time.
@@ -47,9 +54,9 @@ def _time(rng=DEFAULT_RANGE):
     return f"(refreshInterval:(pause:!t,value:0),time:(from:{rng[0]},to:{rng[1]}))"
 
 
-def dashboard_url(base, embed=False):
-    query = '?embed=true&_g=' if embed else '?_g='
-    return f"{origin(base)}/app/dashboards#/view/{DASHBOARD_ID}{query}{quote(_time(), safe='(),:!')}"
+def dashboard_url(base, embed=False, dashboard_id=DASHBOARD_ID):
+    query = '?embed=true&show-time-filter=true&_g=' if embed else '?_g='
+    return f"{origin(base)}/app/dashboards#/view/{dashboard_id}{query}{quote(_time(), safe='(),:!')}"
 
 
 def discover_url(base):

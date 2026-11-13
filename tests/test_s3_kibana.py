@@ -39,41 +39,52 @@ def test_exported_file_is_up_to_date_with_the_generator():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_ndjson_has_two_data_views_twelve_visualizations_and_a_dashboard():
+def test_ndjson_has_two_data_views_three_themed_dashboards_and_their_visualizations():
     objs = objects()
     kinds = [o['type'] for o in objs]
-    assert kinds.count('index-pattern') == 2 and kinds.count('dashboard') == 1
-    assert kinds.count('visualization') == 12 == len(kibana.VISUALIZATION_IDS)
+    assert kinds.count('index-pattern') == 2 and kinds.count('dashboard') == 3
+    assert kinds.count('visualization') == len(kibana.VISUALIZATION_IDS)
     assert len({o['id'] for o in objs}) == len(objs)
-    # the 4 S3 visualizations keep their ids (exports made before stay importable)
+    assert {o['id'] for o in objs if o['type'] == 'dashboard'} == {d for d, _ in kibana.DASHBOARDS.values()}
     for vid in ('sentinel-vis-total-events', 'sentinel-vis-events-over-time', 'sentinel-vis-outcome-split', 'sentinel-vis-top-failing-ips'):
-        assert vid in {o['id'] for o in objs}
+        assert vid in {o['id'] for o in objs}       # first S3 ids kept: earlier exports stay importable
 
 
-def test_every_reference_resolves_inside_the_file():
+def test_every_reference_resolves_and_every_visualization_is_used():
     objs = objects()
     ids = {(o['type'], o['id']) for o in objs}
+    used = set()
     for obj in objs:
         for ref in obj['references']:
             assert (ref['type'], ref['id']) in ids, (obj['id'], ref)
-    dash = next(o for o in objs if o['type'] == 'dashboard')
-    panels = json.loads(dash['attributes']['panelsJSON'])
-    names = {r['name'] for r in dash['references']}
-    assert len(panels) == 12 and {p['panelRefName'] for p in panels} == names
-    assert {r['id'] for r in dash['references']} == set(kibana.VISUALIZATION_IDS.values())
-    assert dash['id'] == kibana.DASHBOARD_ID
+    for dash in (o for o in objs if o['type'] == 'dashboard'):
+        panels = json.loads(dash['attributes']['panelsJSON'])
+        assert {p['panelRefName'] for p in panels} == {r['name'] for r in dash['references']}
+        used |= {r['id'] for r in dash['references']}
+    assert used == set(kibana.VISUALIZATION_IDS.values())
 
 
-def test_dashboard_grid_has_no_overlapping_panels():
-    dash = next(o for o in objects() if o['type'] == 'dashboard')
-    cells = set()
-    for panel in json.loads(dash['attributes']['panelsJSON']):
-        g = panel['gridData']
-        assert g['x'] + g['w'] <= 48
-        for x in range(g['x'], g['x'] + g['w']):
-            for y in range(g['y'], g['y'] + g['h']):
-                assert (x, y) not in cells, panel['panelIndex']
-                cells.add((x, y))
+def test_dashboards_are_landscape_without_overlap_or_text_blocks():
+    for dash in (o for o in objects() if o['type'] == 'dashboard'):
+        cells, bottom = set(), 0
+        for panel in json.loads(dash['attributes']['panelsJSON']):
+            g = panel['gridData']
+            assert g['x'] + g['w'] <= 48
+            bottom = max(bottom, g['y'] + g['h'])
+            for x in range(g['x'], g['x'] + g['w']):
+                for y in range(g['y'], g['y'] + g['h']):
+                    assert (x, y) not in cells, (dash['id'], panel['panelIndex'])
+                    cells.add((x, y))
+        assert bottom <= 32, dash['id']                     # fits one landscape screen
+    kinds = {json.loads(o['attributes']['visState'])['type'] for o in objects() if o['type'] == 'visualization'}
+    assert 'markdown' not in kinds and 'input_control_vis' not in kinds
+
+
+def test_state_colours_match_the_application_identity():
+    outcome = next(o for o in objects() if o['id'] == kibana.VISUALIZATION_IDS['outcome'])
+    colors = json.loads(outcome['attributes']['uiStateJSON'])['vis']['colors']
+    assert colors['failure'] == '#FF4D6D' and colors['success'] == '#18D6C8'
+    assert '"theme:darkMode":true' in (ROOT / 'scripts' / 'setup-kibana.sh').read_text(encoding='utf-8')
 
 
 def test_visualizations_only_use_fields_mapped_in_the_template_with_compatible_types():
@@ -84,7 +95,7 @@ def test_visualizations_only_use_fields_mapped_in_the_template_with_compatible_t
         if obj['type'] != 'visualization':
             continue
         state = json.loads(obj['attributes']['visState'])
-        assert state['type'] in {'metric', 'histogram', 'area', 'pie', 'table', 'heatmap', 'markdown', 'input_control_vis'}
+        assert state['type'] in {'metric', 'histogram', 'area', 'pie', 'table', 'heatmap'}
         view = next((r['id'] for r in obj['references']), None)
         fields = alerts if view == kibana.ALERTS_DATA_VIEW_ID else logs
         for agg in state['aggs']:
@@ -94,7 +105,7 @@ def test_visualizations_only_use_fields_mapped_in_the_template_with_compatible_t
                 assert field in fields, f'{field} is not in the ES template / data view'
                 if agg['type'] == 'date_histogram':
                     assert fields[field] == 'date'
-                if agg['type'] == 'terms':
+                if agg['type'] in ('terms', 'cardinality'):
                     assert fields[field] in {'keyword', 'ip', 'long'}
         for control in state['params'].get('controls', []):
             assert logs.get(control['fieldName']) == 'keyword'
@@ -177,3 +188,11 @@ def test_custom_kibana_url_changes_the_csp_origin(config, stores, users):
     session = Session(create_app(cfg, stores), 'analyste')
     res = session.get('/kibana')
     assert 'frame-src https://kibana.example.org:8443;' in res.headers['Content-Security-Policy']
+
+
+def test_kibana_page_has_one_tab_per_themed_dashboard_and_no_filler_text(analyst):
+    html = analyst.get('/kibana').get_data(as_text=True)
+    assert html.count('class="kb-tab') == 3 and 'Si le cadre reste vide' not in html and 'Tableau de bord d’analyse' not in html
+    alerts = analyst.get('/kibana?tab=alerts').get_data(as_text=True)
+    assert 'sentinel-alerts-overview?embed=true&amp;show-time-filter=true' in alerts
+    assert 'sentinel-security-overview' in analyst.get('/kibana?tab=nope').get_data(as_text=True)

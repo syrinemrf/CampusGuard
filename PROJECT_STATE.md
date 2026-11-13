@@ -9,7 +9,7 @@
 |---|---|---|---|
 | S1 / CORE | Docker Compose ELK + MongoDB + Redis + Flask, ingestion synthétique, mapping strict | 21 tests | **`verify_core` 8/8** (31 oct.) — `docs/evidence/CORE_VALIDATION_2026-10-31.md` |
 | S2 | Authentification/rôles, upload CSV/JSON/TXT, ingestion Logstash, statut mesuré, recherche, export, API + Swagger | 145 tests | **`verify_s2` 18/18** (7 nov.) — `docs/evidence/verify_s2.json` |
-| S3 | Centre de pilotage, dashboard Kibana d'analyse (12 visualisations), modal de détail, 404, mobile, préférences, requête avancée Lucene / Query DSL | 63 tests | **`verify_s3` 13/13** (13 nov.) — `docs/evidence/verify_s3.json` |
+| S3 | Centre de pilotage, 3 dashboards Kibana thématiques (paysage), modal de détail, 404, mobile, préférences, requête avancée Lucene / Query DSL | 63 tests | **`verify_s3` 13/13** (13 nov.) — `docs/evidence/verify_s3.json` |
 | S4 | Alerting (module G) + réponse SOAR-lite (blocage d'IP local à durée limitée) | 39 tests | **`verify_s4` 21/21** (13 nov.) — `docs/evidence/verify_s4.json` |
 
 `python -m pytest -q` → **263 passed** (MongoDB, Redis et Elasticsearch simulés par mongomock, fakeredis et un faux client ES ;
