@@ -1,0 +1,26 @@
+{
+  "index_patterns": ["sentinel-alerts*"],
+  "priority": 200,
+  "template": {
+    "settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.refresh_interval": "5s"},
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": {"type": "date"},
+        "message": {"type": "text"},
+        "alert": {"properties": {
+          "id": {"type": "keyword"},
+          "severity": {"type": "keyword"},
+          "status": {"type": "keyword"},
+          "group": {"type": "keyword"},
+          "count": {"type": "long"},
+          "fingerprint": {"type": "keyword"}
+        }},
+        "rule": {"properties": {"id": {"type": "keyword"}, "name": {"type": "keyword"}, "type": {"type": "keyword"}}},
+        "source": {"properties": {"ip": {"type": "ip"}}},
+        "user": {"properties": {"name": {"type": "keyword"}}},
+        "response": {"properties": {"action": {"type": "keyword"}}}
+      }
+    }
+  }
+}

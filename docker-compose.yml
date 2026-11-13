@@ -24,9 +24,11 @@ services:
     environment:
       ELASTICSEARCH_URL: http://elasticsearch:9200
       TEMPLATE_FILE: /setup/logs-template.json
+      ALERTS_TEMPLATE_FILE: /setup/alerts-template.json
     volumes:
       - ./scripts/setup-index.sh:/setup/setup-index.sh:ro
       - ./ingestion/elasticsearch/logs-template.json:/setup/logs-template.json:ro
+      - ./ingestion/elasticsearch/alerts-template.json:/setup/alerts-template.json:ro
     depends_on:
       elasticsearch: {condition: service_healthy}
     networks: [sentinel]
@@ -55,6 +57,15 @@ services:
       retries: 10
       start_period: 5s
     networks: [sentinel]
+  uploads-init:
+    # Gives the shared upload volume to the unprivileged webapp user (uid 10001) before anything uses it.
+    image: busybox:1.37
+    user: root
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /data/uploads/staging /data/uploads/ready && chown -R 10001:10001 /data/uploads && chmod -R 755 /data/uploads"]
+    volumes:
+      - uploads:/data/uploads
+    networks: [sentinel]
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.10}
     mem_limit: 768m
@@ -66,11 +77,13 @@ services:
       - ./ingestion/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
       - ./ingestion/logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./datasets:/data
+      - uploads:/data/uploads
       - logstash-data:/usr/share/logstash/data
     depends_on:
       elasticsearch-init: {condition: service_completed_successfully}
+      uploads-init: {condition: service_completed_successfully}
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines/csv-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/json-security >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines/csv-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/json-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/upload-security >/dev/null"]
       interval: 20s
       timeout: 10s
       retries: 20
@@ -101,23 +114,53 @@ services:
     environment:
       KIBANA_URL: http://kibana:5601
       DATA_VIEW_FILE: /setup/kibana-data-view.json
+      ALERTS_DATA_VIEW_FILE: /setup/kibana-data-view-alerts.json
+      OBJECTS_FILE: /setup/sentinel-dashboard.ndjson
     volumes:
       - ./scripts/setup-kibana.sh:/setup/setup-kibana.sh:ro
       - ./ingestion/kibana/data-view.json:/setup/kibana-data-view.json:ro
+      - ./ingestion/kibana/data-view-alerts.json:/setup/kibana-data-view-alerts.json:ro
+      - ./ingestion/kibana/sentinel-dashboard.ndjson:/setup/sentinel-dashboard.ndjson:ro
     depends_on:
       kibana: {condition: service_healthy}
     networks: [sentinel]
   webapp:
     build: {context: ., dockerfile: app/Dockerfile}
-    mem_limit: 256m
+    mem_limit: 320m
     environment:
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-dev-not-for-production}
       BUS_BACKEND: ${BUS_BACKEND:-redis}
+      MONGO_DB: ${MONGO_DB:-sentinel}
+      UPLOAD_DIR: /data/uploads
+      REJECTED_DIR: /data/rejected
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      API_RATE_LIMIT_PER_MIN: ${API_RATE_LIMIT_PER_MIN:-300}
+      KIBANA_PUBLIC_URL: ${KIBANA_PUBLIC_URL:-http://localhost:5601}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ANALYST_PASSWORD: ${SEED_ANALYST_PASSWORD:-}
+      SEED_AUDITOR_PASSWORD: ${SEED_AUDITOR_PASSWORD:-}
+      # S4 — alerting (the webapp shows / acts on alerts; the alert-worker container evaluates the rules)
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8000}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-soc@campusguard.lab}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_WEBHOOK_FORMAT: ${ALERT_WEBHOOK_FORMAT:-generic}
+      WEBHOOK_DEMO_TOKEN: ${WEBHOOK_DEMO_TOKEN:-}
+      BLOCK_TTL_MINUTES: ${BLOCK_TTL_MINUTES:-15}
+      BLOCK_NEVER: ${BLOCK_NEVER:-127.0.0.1/32,::1/128}
+      LOGSTASH_HTTP_URL: http://logstash:8088
+      SHIP_AUTH_EVENTS: ${SHIP_AUTH_EVENTS:-true}
+    volumes:
+      - uploads:/data/uploads
+      - ./datasets/rejected:/data/rejected:ro
     ports: ["127.0.0.1:${APP_PORT:-8000}:8000"]
     depends_on:
+      uploads-init: {condition: service_completed_successfully}
       elasticsearch: {condition: service_healthy}
       mongodb: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -127,6 +170,51 @@ services:
       timeout: 5s
       retries: 15
       start_period: 10s
+    networks: [sentinel]
+  alert-worker:
+    # S4 — separate process that evaluates the alert rules every ALERT_INTERVAL_SECONDS (same image as the webapp).
+    build: {context: ., dockerfile: app/Dockerfile}
+    command: ["python", "-m", "app.alerting.worker"]
+    mem_limit: 160m
+    environment:
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}
+      MONGO_DB: ${MONGO_DB:-sentinel}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      ALERT_INTERVAL_SECONDS: ${ALERT_INTERVAL_SECONDS:-30}
+      # same secret as the webapp: the demo webhook token is derived from it (no token in the repository)
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-dev-not-for-production}
+      WEBHOOK_DEMO_TOKEN: ${WEBHOOK_DEMO_TOKEN:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8000}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-sentinel@campusguard.lab}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-soc@campusguard.lab}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_WEBHOOK_FORMAT: ${ALERT_WEBHOOK_FORMAT:-generic}
+      ALERT_WEBHOOK_TEMPLATE: ${ALERT_WEBHOOK_TEMPLATE:-}
+      NOTIFY_RETRIES: ${NOTIFY_RETRIES:-3}
+      BLOCK_TTL_MINUTES: ${BLOCK_TTL_MINUTES:-15}
+      BLOCK_NEVER: ${BLOCK_NEVER:-127.0.0.1/32,::1/128}
+    depends_on:
+      elasticsearch: {condition: service_healthy}
+      mongodb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.alerting.worker", "--healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks: [sentinel]
+  mailpit:
+    # S4 — local SMTP catcher for the alert e-mails (web UI http://localhost:8025). Nothing leaves the machine.
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.21.0}
+    mem_limit: 64m
+    environment:
+      MP_MAX_MESSAGES: 500
+    ports: ["127.0.0.1:8025:8025"]
     networks: [sentinel]
   kafka:
     profiles: [stream]
@@ -172,5 +260,6 @@ networks:
 volumes:
   es-data:
   logstash-data:
+  uploads:
   mongo-data:
   redis-data:

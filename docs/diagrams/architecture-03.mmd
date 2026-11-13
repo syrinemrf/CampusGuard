@@ -1,0 +1,37 @@
+flowchart TB
+  subgraph Host["Poste de l'étudiante — Windows + Docker Desktop (WSL2)"]
+    Browser[Navigateur<br/>localhost:8000 · localhost:5601]
+    subgraph Net["Réseau bridge : sentinel"]
+      direction LR
+      subgraph Web["webapp"]
+        G[gunicorn :8000<br/>Flask · uid 10001]
+      end
+      subgraph Ing["Ingestion"]
+        L[logstash<br/>:5000 TCP · :8088 HTTP]
+      end
+      subgraph Store["Stockage"]
+        E[(elasticsearch :9200)]
+        M[(mongodb :27017)]
+        R[(redis :6379)]
+      end
+      K[kibana :5601]
+    end
+    subgraph Vol["Volumes nommés"]
+      U[(uploads<br/>staging/ · ready/)]
+      D1[(es-data)]
+      D2[(mongo-data)]
+      D3[(redis-data)]
+      D4[(logstash-data)]
+    end
+    Rej[[./datasets/rejected<br/>bind mount]]
+  end
+  Browser -->|127.0.0.1:8000| G
+  Browser -->|127.0.0.1:5601| K
+  G --- U
+  L --- U
+  L --- Rej
+  G -. lecture seule .- Rej
+  E --- D1
+  M --- D2
+  R --- D3
+  L --- D4

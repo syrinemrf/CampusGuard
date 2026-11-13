@@ -1,0 +1,29 @@
+flowchart TB
+  subgraph HTTP[Couche HTTP]
+    Web[views_web<br/>pages Jinja2]
+    API[views_api<br/>API JSON + /api/v1]
+    Auth[views_auth<br/>login · logout]
+  end
+  subgraph Transverse
+    Sec[security<br/>sessions Redis · CSRF · rôles · throttling]
+    Rate[rate_limit<br/>fenêtre 60 s]
+    Spec[openapi<br/>OpenAPI 3.0.3]
+    Kib[kibana<br/>URLs + origine CSP]
+  end
+  subgraph Services
+    Upl[services.uploads]
+    Par[services.parsing]
+    Sea[services.search]
+    Usr[services.users]
+    Pre[services.prefs]
+  end
+  Cfg[config<br/>variables d'environnement]
+  St[stores<br/>ElasticClient · MongoDB · Redis]
+  Web --> Upl & Sea & Pre & Kib
+  API --> Upl & Sea & Pre & Spec
+  Auth --> Usr
+  Upl --> Par
+  Upl & Sea & Usr & Pre & Sec --> St
+  HTTP --> Sec
+  HTTP --> Rate
+  Cfg --> St

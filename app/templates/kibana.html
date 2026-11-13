@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Kibana{% endblock %}
+{% block h1 %}Dashboard Kibana{% endblock %}
+{% block content %}
+<p class="sub">Tableau de bord d’<b>analyse</b> : filtres interactifs, part des échecs dans le temps, carte de chaleur heure × jour,
+  comptes visés, pays d’origine et alertes par gravité. Cliquez un élément pour filtrer, ouvrez Discover pour les logs bruts.
+  Les actions immédiates sont dans le <a href="{{ url_for('web.home') }}">centre de pilotage</a>.
+  <a href="{{ open_url }}" target="_blank" rel="noopener">Ouvrir dans Kibana</a> ·
+  <a href="{{ discover_url }}" target="_blank" rel="noopener">Discover</a></p>
+<div class="alert info">Si le cadre reste vide : vérifiez que Kibana est démarré (<code>docker compose ps</code>) et que <code>KIBANA_PUBLIC_URL</code> est joignable depuis votre navigateur.</div>
+<iframe class="kibana-frame" src="{{ embed_url }}" title="Dashboard Kibana Sentinel" loading="lazy" referrerpolicy="no-referrer"></iframe>
+{% endblock %}

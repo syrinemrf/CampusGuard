@@ -1,0 +1,93 @@
+'use strict';
+/* Shared helpers. All dynamic text is inserted with textContent (no innerHTML) to avoid XSS. */
+window.Sentinel = (function () {
+  const csrf = () => (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  function el(tag, attrs, ...children) {
+    const node = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === false) return;
+      if (k === 'class') node.className = v;
+      else if (k === 'text') node.textContent = v;
+      else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v === true ? '' : v);
+    });
+    children.flat().forEach((c) => {
+      if (c === null || c === undefined) return;
+      node.append(c.nodeType ? c : document.createTextNode(String(c)));
+    });
+    return node;
+  }
+
+  async function api(path, options) {
+    const opts = Object.assign({ method: 'GET', headers: {}, credentials: 'same-origin' }, options || {});
+    if (opts.method !== 'GET') opts.headers['X-CSRF-Token'] = csrf();
+    const response = await fetch(path, opts);
+    let data = null;
+    try { data = await response.json(); } catch (e) { /* non-JSON body */ }
+    if (response.status === 401) { window.location.href = '/login'; }
+    return { ok: response.ok, status: response.status, data: data || {} };
+  }
+
+  const fmtDate = (iso) => (iso ? iso.replace('T', ' ').replace(/(\.\d+)?(Z|[+-]00:00)?$/, '') : '—');
+  const fmtBytes = (n) => (n < 1024 ? n + ' o' : n < 1048576 ? (n / 1024).toFixed(1) + ' Ko' : (n / 1048576).toFixed(1) + ' Mo');
+
+  // Theme (per-viewer convenience only; works without storage).
+  const root = document.documentElement;
+  try { const t = localStorage.getItem('sentinel-theme'); if (t) root.setAttribute('data-theme', t); } catch (e) { /* ignore */ }
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('sentinel-theme', next); } catch (e) { /* ignore */ }
+    });
+  });
+
+  /* Event detail rows, shared by the search modal and the dedicated /events/<id> page. */
+  function eventRows(data) {
+    const s = data.summary;
+    return [['Horodatage (UTC)', fmtDate(s.timestamp)], ['Niveau', s.level], ['Service', s.service], ['IP source', s.ip],
+      ['Utilisateur', s.user], ['Action', s.action], ['Résultat', s.outcome], ['Catégorie', s.category],
+      ['Origine du temps', s.time_mode === 'ingest' ? 'heure de réception (pas de temps source)' : 'temps source'],
+      ['Import', s.upload_id], ['Index', data.index], ['Identifiant', data.id]]
+      .flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v || '—' })]);
+  }
+
+  /* Visual alerts on every page: badge in the navigation, count in the tab title, optional desktop notification.
+     Polls /api/alerts/summary every 20 s (≈ 3 requests/min, far below the API rate limit). */
+  function watchAlerts() {
+    const badge = document.getElementById('nav-alert-badge');
+    if (!badge) return;
+    const baseTitle = document.title;
+    let lastSeen = null;
+    try { lastSeen = sessionStorage.getItem('sentinel-last-alert'); } catch (e) { /* ignore */ }
+    const notifyBtn = document.getElementById('notify-toggle');
+    if (notifyBtn && 'Notification' in window && Notification.permission === 'default') {
+      notifyBtn.classList.remove('hidden');
+      notifyBtn.addEventListener('click', () => Notification.requestPermission().then(() => notifyBtn.classList.add('hidden')));
+    }
+    async function tick() {
+      const { ok, data } = await api('/api/alerts/summary');
+      if (!ok) return;
+      const n = data.open_total || 0;
+      badge.textContent = n;
+      badge.classList.toggle('hidden', n === 0);
+      badge.classList.toggle('crit', (data.open_by_severity || {}).critical > 0);
+      document.title = (n ? '(' + n + ') ' : '') + baseTitle;
+      const latest = data.latest_open;
+      if (latest && latest.id !== lastSeen) {
+        if (lastSeen !== null && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('Sentinel · ' + latest.severity_label + ' : ' + latest.rule_name, { body: latest.message, tag: latest.id });
+        }
+        lastSeen = latest.id;
+        try { sessionStorage.setItem('sentinel-last-alert', lastSeen); } catch (e) { /* ignore */ }
+      }
+    }
+    tick();
+    setInterval(tick, 20000);
+  }
+  document.addEventListener('DOMContentLoaded', watchAlerts);
+
+  return { csrf, el, api, fmtDate, fmtBytes, eventRows };
+})();

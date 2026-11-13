@@ -2,7 +2,7 @@
 
 CampusGuard est un **mini-SIEM/SOAR explicable** conçu pour centraliser, normaliser et explorer des journaux de sécurité dans un environnement académique local. Le projet vise à aider un analyste SOC à rechercher des événements, comprendre une activité suspecte et, à terme, gérer des alertes et des réponses réversibles.
 
-Le dépôt contient actuellement un **socle CORE validé localement** : infrastructure Docker, ingestion de données synthétiques, indexation, contrôles de santé et exploration dans Kibana. Cette validation ne couvre pas encore le MVP web complet et ne constitue pas une configuration de production.
+Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure Docker, ingestion, authentification par rôles, upload CSV/JSON/TXT, recherche, export, API + Swagger, centre de pilotage et dashboard Kibana d’analyse) et le **module avancé G — alerting** avec une réponse **SOAR-lite** (S4 : règles, worker séparé, notifications e-mail/webhook, incidents, blocage d’IP local à durée limitée). Tout est validé sur la stack Docker réelle : `verify_core` 8/8, `verify_s2` 18/18, `verify_s3` 13/13 et `verify_s4` 21/21 (13 novembre 2026, preuves dans `docs/evidence/`). État détaillé et honnête : [`PROJECT_STATE.md`](PROJECT_STATE.md). Ce n’est pas une configuration de production.
 
 ## Fonctionnalités disponibles
 
@@ -11,10 +11,13 @@ Le dépôt contient actuellement un **socle CORE validé localement** : infrastr
 - indexation dans Elasticsearch avec un mapping proche d’ECS et `dynamic: false` ; les champs inconnus restent dans `_source`, mais ne sont ni indexés ni recherchables comme champs ;
 - exploration des événements dans Kibana Discover avec une data view `logs-*` ;
 - MongoDB et Redis opérationnels et vérifiés par l’API Flask ;
-- API Flask minimale avec les routes `/`, `/health` et `/ready` ;
+- **S2** : connexion avec rôles (Administrateur, Analyste SOC, Auditeur), sessions Redis, upload CSV/JSON/JSONL/TXT avec aperçu de 10 lignes et validation, ingestion Logstash, statut reçu → validé → indexé mesuré dans Elasticsearch, recherche multicritère paginée, détail d’événement, export CSV, historique de recherche MongoDB (détails dans la section « S2 » ci-dessous) ;
+- routes de santé `/health` et `/ready` ;
 - sorties de rejet distinctes configurées pour CSV et JSON, avec le cas JSON invalide vérifié de bout en bout ;
 - adaptateurs expérimentaux Redis Streams/Pub/Sub et Kafka ;
-- tests du socle Python, de la disponibilité, du mapping, du simulateur et des bus.
+- **S3** : deux tableaux de bord complémentaires — le **centre de pilotage** (accueil : KPI comparés à la période précédente, alertes à traiter, IP prioritaires, santé mesurée des services, pipelines Logstash, fraîcheur et rejets) et le **dashboard Kibana d’analyse** (12 visualisations : filtres interactifs, part des échecs, carte de chaleur heure × jour, comptes visés, pays, alertes par gravité) exporté en NDJSON dans `ingestion/kibana/`, ré-importable et intégré dans l’application ; fenêtre modale de détail, page 404, fil d’Ariane, version mobile ; préférences par utilisateur (MongoDB) ; documents d’[analyse fonctionnelle](docs/ANALYSE_FONCTIONNELLE.pdf) et d’[architecture technique](docs/ARCHITECTURE.pdf) ;
+- **S4** : 8 règles de détection du scénario C (force brute, credential stuffing, pays non autorisé, hors horaires, élévation de privilèges, injection SQL, pic d’erreurs, silence), éditeur avec **test avant activation**, worker d’alertes séparé, *silencing* et *cooldown*, notifications e-mail (Mailpit) et webhook (Slack/Discord/Teams/JSON) avec *retry*, prise en compte / résolution / MTTR, **blocage d’IP local** avec durée de vie et audit (détails dans la section « S4 ») ;
+- 263 tests automatisés (socle, S2, S3 : centre de pilotage, objets Kibana, interface ; S4 : règles, worker, notifications, blocage, API et droits).
 
 ## Validation CORE du 31 octobre 2026
 
@@ -30,6 +33,61 @@ La branche de travail `feat/core-infrastructure` a été validée avec Docker 28
 - CORE consomme environ 2,21 GiB de RAM conteneurisée. L’hôte utilisait 89,0 % de ses 13,88 GiB, avec 1,53 GiB disponible : le profil STREAM n’a pas été lancé et Kafka reste interdit pour l’instant.
 
 Voir la [preuve de validation CORE destinée au dépôt](docs/evidence/CORE_VALIDATION_2026-10-31.md) et la [capture Kibana Discover](docs/evidence/core-kibana-discover.png).
+
+## S2 — Authentification, upload, ingestion et recherche
+
+### Démarrer et créer les comptes
+
+```powershell
+docker compose up -d --build --wait --wait-timeout 600
+docker compose exec webapp flask --app app.main seed-users
+```
+
+La commande crée `admin`, `analyste` et `auditeur` s’ils n’existent pas. Les mots de passe viennent de `SEED_ADMIN_PASSWORD`, `SEED_ANALYST_PASSWORD`, `SEED_AUDITOR_PASSWORD` (12 caractères minimum, à placer dans `.env`, jamais dans Git) ; sinon un mot de passe aléatoire est **affiché une seule fois**. Autre compte : `docker compose exec webapp flask --app app.main create-user <nom> <admin|analyst|auditor>`. Mot de passe perdu : `docker compose exec webapp flask --app app.main set-password <nom>` (audité).
+
+Ouvrir `http://127.0.0.1:8000`. Droits : l’**Administrateur** et l’**Analyste** envoient des fichiers (l’analyste ne voit que les siens) ; l’**Auditeur** consulte les imports et recherche en lecture seule.
+
+### Parcours d’import
+
+1. **Envoi de fichiers** : choisir ou déposer un fichier `.csv`, `.json`, `.jsonl`, `.ndjson`, `.txt` ou `.log` (10 Mo max, `MAX_UPLOAD_MB`).
+2. L’application vérifie l’extension, le type MIME, l’absence de contenu binaire, l’encodage UTF-8, calcule le SHA-256 (un fichier identique est refusé) et valide chaque ligne. Elle affiche les **10 premières lignes**, les événements normalisés et les erreurs avec leur numéro de ligne.
+3. **Lancer l’ingestion** : le fichier normalisé est déposé dans le volume surveillé par le pipeline Logstash `upload-security`.
+4. L’état passe à **Indexé** (ou **Partiellement indexé** / **Échec**) uniquement après comptage dans Elasticsearch et dans le fichier de rejets `datasets/rejected/upload-<id>.ndjson`.
+
+Formats attendus : CSV avec en-tête contenant un horodatage (`timestamp`, `time`, `date`…) et une IP (`ip`, `source_ip`…) ; colonnes optionnelles `user`, `outcome`, `level`, `action`, `service`, `port`, `message`. JSON/JSONL : objets avec les mêmes champs (plats ou ECS imbriqués). TXT : une ligne = un événement ; horodatage ISO ou syslog reconnu, IP extraite, motifs `sshd` simples (heuristiques).
+
+### Valider S2 sur la stack réelle
+
+```powershell
+python scripts/verify_s2.py --base-url http://127.0.0.1:8000 --username analyste --password "<mot de passe>" --evidence docs/evidence/s2-verify-result.json
+```
+
+Le script envoie un vrai fichier, le fait passer par Logstash et Elasticsearch, puis contrôle statut, recherche, filtres, export et détail (18 contrôles). Sans lui, l’ingestion des uploads reste **non vérifiée**.
+
+### API
+
+Spécification OpenAPI : `/api/openapi.json` ; documentation interactive Swagger UI : `http://127.0.0.1:8000/api/docs` (après connexion). Détails, routes et codes d’erreur : [docs/API.md](docs/API.md) (authentification par session + en-tête `X-CSRF-Token`, limite 300 requêtes/min).
+
+## S4 — Alertes, incidents et blocage d’IP
+
+```powershell
+docker compose up -d --build --wait --wait-timeout 600     # démarre aussi alert-worker et mailpit
+python scripts/simulate_attack.py                          # scénario d'attaque synthétique, horodaté maintenant
+```
+
+- `http://127.0.0.1:8000/alerts` : alertes actives (prise en compte, résolution avec note), alertes par jour, top 10, MTTR, IP bloquées ;
+- `http://127.0.0.1:8000/alerts/rules` : règles, éditeur (requête Elasticsearch `query_string`) et **test avant activation** ;
+- `http://127.0.0.1:8025` : boîte e-mail de laboratoire (Mailpit) où arrivent les alertes avec leur graphique.
+
+Le worker (`alert-worker`) évalue les règles actives toutes les 30 s. Une même attaque reste **une seule alerte** tant qu’elle est ouverte ; un *cooldown* évite de ré-alerter juste après une résolution. La règle « force brute » bloque l’IP source **dans l’application uniquement** (HTTP 403) pendant 15 min ; aucune action réseau. Débloquer : bouton « Débloquer » (administrateur) ou `docker compose exec webapp flask --app app.main unblock-ip <ip>`.
+
+Validation de bout en bout sur la stack réelle (attaque → Logstash → Elasticsearch → worker → alerte → e-mail + webhook → blocage → résolution → MTTR) :
+
+```powershell
+python scripts/verify_s4.py --username admin --password "<mot de passe admin>" --evidence docs/evidence/verify_s4.json
+```
+
+Option `--self-block` : attaque la page de connexion de l’application depuis votre machine pour prouver l’auto-protection (votre machine est bloquée puis débloquée automatiquement).
 
 ## Architecture
 
@@ -184,15 +242,10 @@ Cette configuration est réservée à un **laboratoire local** : Elasticsearch f
 
 ## Limites actuelles et suite du projet
 
-Le socle CORE validé ne fournit pas encore :
+Le projet ne fournit pas encore :
 
-- l’interface métier complète ;
-- l’authentification et le contrôle d’accès par rôle ;
-- l’import de fichiers depuis l’interface ;
-- la recherche et l’export applicatifs ;
-- le moteur d’alertes, le machine learning ou les notifications temps réel ;
-- les actions SOAR de blocage et de déblocage ;
-- les trois visualisations de sécurité et le dashboard Kibana exporté exigés pour le MVP ;
+- l’escalade et le *snooze* des alertes, le flux continu et le *live tail* WebSocket, le rapport PDF mensuel (S5) ;
+- le machine learning et le NLP (S6) ; la gestion des utilisateurs par l’interface ;
 - un pipeline Kafka opérationnel de bout en bout.
 
 Ces fonctions sont prévues dans les phases suivantes. L’état courant et les éléments non testés sont suivis dans [`PROJECT_STATE.md`](PROJECT_STATE.md).
@@ -208,6 +261,8 @@ Ces fonctions sont prévues dans les phases suivantes. L’état courant et les 
 - [Décisions d’architecture](docs/adr/)
 - [Validation CORE du 31 octobre 2026](docs/evidence/CORE_VALIDATION_2026-10-31.md)
 - [Capture Kibana Discover](docs/evidence/core-kibana-discover.png)
+- [API REST S2](docs/API.md)
+- [Audit de l’état au 6 novembre 2026 et validation S2](docs/evidence/AUDIT_ET_S2_2026-11-06.md)
 
 ## Auteure
 

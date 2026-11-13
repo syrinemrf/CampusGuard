@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Envoi de fichiers{% endblock %}
+{% block h1 %}Envoi de fichiers{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='js/upload.js') }}" defer></script>{% endblock %}
+{% block content %}
+<div id="upload-app" data-can-upload="{{ 'true' if can_upload else 'false' }}" data-max-mb="{{ max_mb }}">
+{% if can_upload %}
+<section class="cd">
+  <h2>1. Choisir un fichier</h2>
+  <p class="sub">Formats : CSV (en-tête obligatoire : <code>timestamp</code> + <code>ip</code>), JSON / JSONL / NDJSON, TXT / LOG. Taille maximale : {{ max_mb }} Mo. Les 10 premières lignes sont affichées avant toute ingestion.</p>
+  <div class="field typesel"><label for="source-type">Type de fichier</label><select class="in" id="source-type"><option value="auto">Détection automatique (extension)</option><option value="csv">CSV</option><option value="json">JSON / JSONL</option><option value="txt">TXT / LOG</option></select></div>
+  <div class="dz" id="dropzone" tabindex="0" role="button" aria-label="Zone de dépôt : cliquer ou déposer un fichier">
+    <b>Déposez un fichier ici</b><span>ou</span>
+    <label class="btn p" for="file-input">Parcourir…</label>
+    <input id="file-input" class="visually-hidden" type="file" accept=".csv,.json,.jsonl,.ndjson,.txt,.log">
+  </div>
+  <div id="progress" class="hidden" aria-live="polite">
+    <div class="pr"><i id="progress-bar"></i></div><small id="progress-label"></small>
+  </div>
+  <div id="message" class="alert hidden" role="status"></div>
+</section>
+<section class="cd hidden" id="preview-card">
+  <h2>2. Aperçu et validation</h2>
+  <div id="summary" class="summary"></div>
+  <div id="warnings"></div>
+  <h3>10 premières lignes du fichier</h3>
+  <pre id="raw-preview" class="raw"></pre>
+  <h3>Événements normalisés (10 premiers)</h3>
+  <div class="tw"><table id="events-table"><thead><tr><th>Ligne</th><th>Horodatage (UTC)</th><th>IP</th><th>Utilisateur</th><th>Niveau</th><th>Résultat</th><th>Service</th><th>Message</th></tr></thead><tbody></tbody></table></div>
+  <div id="errors"></div>
+  <div class="actions"><button class="btn p" id="confirm-btn" type="button">Lancer l’ingestion</button><button class="btn" id="cancel-btn" type="button">Annuler</button></div>
+</section>
+{% else %}
+<div class="alert info">Votre rôle (lecture seule) ne permet pas d’envoyer des fichiers. Vous pouvez consulter l’état des imports ci-dessous.</div>
+{% endif %}
+<section class="cd">
+  <h2>Imports</h2>
+  <p class="sub">Reçu → validé → ingestion → indexé. L’état « indexé » n’est affiché qu’après comptage dans Elasticsearch.</p>
+  <div class="tw"><table id="uploads-table"><thead><tr><th>Fichier</th><th>Type</th><th>Envoyé par</th><th>État</th><th>Valides</th><th>Indexés</th><th>Rejetés</th><th></th></tr></thead><tbody></tbody></table></div>
+  <p class="sub hidden" id="uploads-empty">Aucun import pour le moment.</p>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Erreur {{ status }} · Sentinel</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sentinel.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script></head>
+<body><div class="lgn"><div class="cd err-card">
+<p class="err-code" aria-hidden="true">{{ status }}</p>
+<h1 class="login-title">{% if status == 404 %}Page introuvable{% elif status == 403 %}Accès refusé{% elif status == 429 %}Trop de requêtes{% else %}Une erreur est survenue{% endif %}</h1>
+<p>{{ message }}</p>
+{% if status == 404 %}<p class="sub">L’adresse est peut-être mal saisie, ou l’élément a été supprimé. Essayez plutôt :</p>{% endif %}
+<div class="actions">
+  <a class="btn p" href="{{ url_for('web.home') }}">Centre de pilotage</a>
+  {% if status == 404 %}<a class="btn" href="{{ url_for('web.search_page') }}">Explorateur de logs</a><a class="btn" href="{{ url_for('web.upload') }}">Envoi de fichiers</a>{% endif %}
+</div>
+<p class="sub small">Code {{ status }} · CampusGuard · Sentinel</p>
+</div></div></body></html>

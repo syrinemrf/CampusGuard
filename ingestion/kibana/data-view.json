@@ -4,7 +4,21 @@
     "name": "CampusGuard logs",
     "title": "logs-*",
     "timeFieldName": "@timestamp",
-    "allowNoIndex": true
+    "allowNoIndex": true,
+    "runtimeFieldMap": {
+      "hour_of_day": {
+        "type": "long",
+        "script": {
+          "source": "if (doc['@timestamp'].size() == 0) { return; } emit(doc['@timestamp'].value.withZoneSameInstant(ZoneId.of('Africa/Tunis')).getHour());"
+        }
+      },
+      "day_of_week": {
+        "type": "keyword",
+        "script": {
+          "source": "if (doc['@timestamp'].size() == 0) { return; } String[] d = new String[] {'1 lun', '2 mar', '3 mer', '4 jeu', '5 ven', '6 sam', '7 dim'}; emit(d[doc['@timestamp'].value.withZoneSameInstant(ZoneId.of('Africa/Tunis')).getDayOfWeekEnum().getValue() - 1]);"
+        }
+      }
+    }
   },
   "override": true
 }

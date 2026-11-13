@@ -1,0 +1,83 @@
+"""Application configuration, read from environment variables (never from git)."""
+import hashlib
+import hmac
+import os
+from dataclasses import dataclass, field
+
+
+def _int(name, default):
+    try:
+        return int(os.getenv(name, default))
+    except ValueError:
+        return int(default)
+
+
+def _float(name, default):
+    try:
+        return float(os.getenv(name, default))
+    except ValueError:
+        return float(default)
+
+
+def _bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _env(name, default):
+    return field(default_factory=lambda: os.getenv(name, default))
+
+
+@dataclass
+class Config:
+    secret_key: str = _env('FLASK_SECRET_KEY', 'local-only-secret')
+    elasticsearch_url: str = field(default_factory=lambda: os.getenv('ELASTICSEARCH_URL', 'http://elasticsearch:9200').rstrip('/'))
+    mongo_uri: str = _env('MONGO_URI', 'mongodb://mongodb:27017/')
+    mongo_db: str = _env('MONGO_DB', 'sentinel')
+    redis_url: str = _env('REDIS_URL', 'redis://redis:6379/0')
+    logs_index: str = _env('ES_LOGS_INDEX', 'logs-*')
+    upload_dir: str = _env('UPLOAD_DIR', '/data/uploads')
+    rejected_dir: str = _env('REJECTED_DIR', '/data/rejected')
+    max_upload_mb: int = field(default_factory=lambda: _int('MAX_UPLOAD_MB', 10))
+    max_invalid_ratio: float = field(default_factory=lambda: _float('MAX_INVALID_RATIO', 0.5))
+    session_ttl: int = field(default_factory=lambda: _int('SESSION_TTL_SECONDS', 7200))
+    session_cookie_secure: bool = field(default_factory=lambda: _bool('SESSION_COOKIE_SECURE', False))
+    login_max_failures: int = field(default_factory=lambda: _int('LOGIN_MAX_FAILURES', 5))
+    login_window_seconds: int = field(default_factory=lambda: _int('LOGIN_WINDOW_SECONDS', 300))
+    search_cache_ttl: int = field(default_factory=lambda: _int('SEARCH_CACHE_TTL', 30))
+    export_max_rows: int = field(default_factory=lambda: _int('EXPORT_MAX_ROWS', 5000))
+    kibana_public_url: str = _env('KIBANA_PUBLIC_URL', 'http://localhost:5601')
+    kibana_internal_url: str = field(default_factory=lambda: os.getenv('KIBANA_INTERNAL_URL', 'http://kibana:5601').rstrip('/'))
+    logstash_api_url: str = field(default_factory=lambda: os.getenv('LOGSTASH_API_URL', 'http://logstash:9600').rstrip('/'))
+    api_rate_limit: int = field(default_factory=lambda: _int('API_RATE_LIMIT_PER_MIN', 300))
+    ingest_stall_seconds: int = field(default_factory=lambda: _int('INGEST_STALL_SECONDS', 300))
+    # --- S4: alerting, notifications, IP blocklist ---
+    app_public_url: str = field(default_factory=lambda: os.getenv('APP_PUBLIC_URL', 'http://localhost:8000').rstrip('/'))
+    alert_interval_seconds: int = field(default_factory=lambda: _int('ALERT_INTERVAL_SECONDS', 30))
+    alerts_index_prefix: str = _env('ALERTS_INDEX_PREFIX', 'sentinel-alerts')
+    smtp_host: str = _env('SMTP_HOST', '')
+    smtp_port: int = field(default_factory=lambda: _int('SMTP_PORT', 1025))
+    smtp_from: str = _env('SMTP_FROM', 'sentinel@campusguard.lab')
+    alert_email_to: str = _env('ALERT_EMAIL_TO', 'soc@campusguard.lab')
+    webhook_url: str = _env('ALERT_WEBHOOK_URL', '')
+    webhook_format: str = _env('ALERT_WEBHOOK_FORMAT', 'generic')
+    webhook_template: str = _env('ALERT_WEBHOOK_TEMPLATE', '')
+    webhook_demo_token: str = _env('WEBHOOK_DEMO_TOKEN', '')
+    notify_retries: int = field(default_factory=lambda: _int('NOTIFY_RETRIES', 3))
+    block_ttl_minutes: int = field(default_factory=lambda: _int('BLOCK_TTL_MINUTES', 15))
+    block_never: str = _env('BLOCK_NEVER', '127.0.0.1/32,::1/128')
+    logstash_http_url: str = field(default_factory=lambda: os.getenv('LOGSTASH_HTTP_URL', 'http://logstash:8088').rstrip('/'))
+    ship_auth_events: bool = field(default_factory=lambda: _bool('SHIP_AUTH_EVENTS', True))
+    alert_timezone: str = _env('ALERT_TIMEZONE', 'Africa/Tunis')
+    testing: bool = False
+
+    def __post_init__(self):
+        # Demo webhook receiver: no token is ever written in the repository. Unless WEBHOOK_DEMO_TOKEN is set, it is
+        # derived from FLASK_SECRET_KEY (shared by the webapp and the worker), and the webhook URL defaults to it.
+        # ALERT_WEBHOOK_URL=none disables the webhook channel.
+        if not self.webhook_demo_token:
+            self.webhook_demo_token = hmac.new(self.secret_key.encode(), b'sentinel-webhook-demo', hashlib.sha256).hexdigest()[:32]
+        if not self.webhook_url:
+            base = os.getenv('WEBHOOK_DEMO_BASE', 'http://webapp:8000').rstrip('/')
+            self.webhook_url = f'{base}/hooks/demo/{self.webhook_demo_token}'
+        elif self.webhook_url.strip().lower() == 'none':
+            self.webhook_url = ''

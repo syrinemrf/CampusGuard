@@ -1,69 +1,89 @@
 # PROJECT_STATE — CampusGuard / Sentinel
 
-**Date de situation :** 31 octobre 2026. **Branche de travail :** `feat/core-infrastructure`. **Encadrant :** Mohamed Najeh Issaoui.
+**Date de situation :** 13 novembre 2026. **Branche de travail :** `feat/s2-auth-upload-search` (CORE fusionné dans `main`, PR #1).
+**Encadrant :** Mohamed Najeh Issaoui. **Méthode :** Kanban Jira (projet `KAN`), WIP ≤ 2, un ticket n'est clôturé qu'avec une preuve.
 
-## Résultat de la tranche CORE
+## Vue d'ensemble
 
-**PASS — infrastructure CORE fonctionnelle et démontrée localement.**
+| Tranche | Contenu | Preuve automatique | Preuve sur la stack Docker réelle |
+|---|---|---|---|
+| S1 / CORE | Docker Compose ELK + MongoDB + Redis + Flask, ingestion synthétique, mapping strict | 21 tests | **`verify_core` 8/8** (31 oct.) — `docs/evidence/CORE_VALIDATION_2026-10-31.md` |
+| S2 | Authentification/rôles, upload CSV/JSON/TXT, ingestion Logstash, statut mesuré, recherche, export, API + Swagger | 145 tests | **`verify_s2` 18/18** (7 nov.) — `docs/evidence/verify_s2.json` |
+| S3 | Centre de pilotage, dashboard Kibana d'analyse (12 visualisations), modal de détail, 404, mobile, préférences, requête avancée Lucene / Query DSL | 63 tests | **`verify_s3` 13/13** (13 nov.) — `docs/evidence/verify_s3.json` |
+| S4 | Alerting (module G) + réponse SOAR-lite (blocage d'IP local à durée limitée) | 39 tests | **`verify_s4` 21/21** (13 nov.) — `docs/evidence/verify_s4.json` |
 
-- Docker 28.4 et Docker Compose 2.39.4.
-- Elasticsearch, Logstash et Kibana 8.19.10 ; MongoDB 7.0 ; Redis 7.4.
-- Elasticsearch, MongoDB, Redis, Logstash, Kibana et Flask sont `healthy` ; `elasticsearch-init` et `kibana-init` se terminent avec `Exited (0)`.
-- `GET /ready` répond HTTP 200 avec Elasticsearch, MongoDB et Redis à `ok`. La disponibilité Elasticsearch exige un statut de cluster `yellow` ou `green` et `timed_out: false` ; un cluster rouge ou expiré rend l’endpoint dégradé.
-- `scripts/verify_core.py` : **8/8 contrôles PASS**.
-- Elasticsearch : **100 documents** dans `logs-auth-*` et **100 documents** dans `logs-firewall-*`.
-- Template Elasticsearch : l’API confirme `dynamic: false`. `setup-index.sh` applique aussi ce réglage aux indices `logs-*` déjà existants. Un champ inconnu reste visible dans `_source`, mais n’est pas indexé et ne peut pas être recherché comme champ.
-- Kibana : data view `logs-*` présente ; 200 documents consultables dans Discover.
-- JSON invalide : l’entrée HTTP Logstash répond 200, puis le pipeline place l’événement dans `datasets/rejected/json-dead-letter.jsonl` avec les tags `_jsonparsefailure`, `_missing_timestamp`, `_missing_source_ip` et `_missing_event_outcome`.
-- Types JSON invalides : les probes avec `message` objet, `labels` chaîne, `source.geo` chaîne ou `threat` chaîne reçoivent HTTP 200 à l’entrée, puis `_invalid_field_type`, sont écrites en dead-letter et produisent chacune 0 document Elasticsearch. Toute exception du filtre Ruby est également routée vers le rejet.
-- Tests : `python -m pytest -q` → **21 passed**.
-- `docker compose config -q` et `docker compose --profile stream config -q` → PASS. Le profil STREAM a uniquement été validé syntaxiquement ; il n’a pas été lancé.
+`python -m pytest -q` → **263 passed** (MongoDB, Redis et Elasticsearch simulés par mongomock, fakeredis et un faux client ES ;
+Docker, Logstash et Kibana ne sont pas lancés par les tests). Les pages ont aussi été contrôlées dans Chromium (bureau 1440 px et
+mobile 390 px) sur données simulées.
 
-Preuves à inclure au même commit : [validation détaillée](docs/evidence/CORE_VALIDATION_2026-10-31.md) et [capture Kibana Discover](docs/evidence/core-kibana-discover.png). Aucun lien ne dépend des rapports locaux générés dans `reports/`.
+## S3 — socle obligatoire terminé (13 novembre 2026)
 
-## Particularité du port Elasticsearch
+Deux tableaux de bord **complémentaires**, sans graphique en double :
 
-Le port hôte par défaut reste `127.0.0.1:9200` et peut être remplacé par `ELASTICSEARCH_PORT`. La validation a utilisé `127.0.0.1:9201`, car une instance Elasticsearch WSL 8.19.23 sécurisée occupait déjà 9200. Les communications internes Docker restent sur `http://elasticsearch:9200`.
+- **Centre de pilotage** (page d'accueil de l'application) — *qu'est-ce qui demande une action maintenant ?*
+  KPI d'authentification (échecs, taux de réussite, IP en échec, comptes visés) comparés à la période précédente de même durée
+  (24 h / 7 j / 30 j / 90 j, période mémorisée par utilisateur) ; alertes à traiter ; 5 IP prioritaires cliquables vers l'explorateur
+  pré-filtré (avec badge « bloquée ») ; **santé mesurée** de la plateforme : services, worker d'alertes, pipelines Logstash
+  (événements reçus / écrits via l'API 9600), fraîcheur par source, lignes rejetées (dead letters), imports partiels ou en échec.
+  API : `GET /api/overview` (cache Redis 30 s).
+- **Dashboard Kibana « Sentinel · Analyse sécurité »** — *comprendre et explorer* : mode d'emploi, filtres interactifs
+  (service, niveau, résultat), part des échecs dans le temps (aire à 100 %), carte de chaleur heure × jour des échecs (champs
+  runtime `hour_of_day` / `day_of_week` en heure de Tunis, rien n'est réindexé), top IP, comptes les plus visés, histogramme par
+  niveau, pays d'origine (GeoIP), alertes par gravité et par règle (index `sentinel-alerts-*`). 2 data views, 12 visualisations,
+  1 dashboard, générés par `scripts/build_kibana_objects.py` et vérifiés champ par champ contre les templates Elasticsearch.
+- Interface : détail d'un événement dans une **fenêtre modale** accessible depuis les résultats (la page `/events/<id>` reste le lien
+  partageable), page 404/403 utile, fil d'Ariane, messages flash, déconnexion accessible sur mobile (et identifiant de session
+  détruit à la déconnexion).
 
-## Mesure mémoire finale
+## S4 — détection et alerting (13 novembre 2026)
 
-| Service | Mémoire mesurée |
-|---|---:|
-| Elasticsearch | 1018 MiB |
-| Kibana | 548,5 MiB |
-| Logstash | 565,9 MiB |
-| MongoDB | 63,56 MiB |
-| Redis | 8,188 MiB |
-| Flask | 58,02 MiB |
-| **Total CORE approximatif** | **2262 MiB, soit 2,21 GiB** |
+**Statut : VALIDÉ sur la stack Docker réelle le 13 novembre 2026 (`verify_s4` 21/21)** : attaque synthétique → Logstash → Elasticsearch → worker → 6 alertes (force brute, credential stuffing, injection SQL, élévation de privilèges, hors horaires, pays non autorisé via GeoIP 8.8.8.8 → US) → e-mail reçu dans Mailpit avec graphique PNG → webhook reçu → IP bloquée 15 min dans Redis → *silencing* (1 seule alerte, 4 occurrences) → prise en compte puis résolution → MTTR → déblocage audité.
 
-Mémoire physique de l’hôte : 13,88 GiB au total, 89,0 % utilisés et 1,53 GiB disponibles au moment de la mesure. **Kafka ne doit pas être lancé dans cet état.** Une nouvelle mesure et une marge mémoire suffisante sont requises avant tout essai STREAM.
+- **Règles** (MongoDB `alert_rules`) : 4 types de condition — seuil, valeurs distinctes, motif regex, absence de logs ; fenêtres 5 min,
+  15 min, 1 h, 24 h ; gravités faible → critique ; option « hors horaires ». **8 règles par défaut du scénario C** : force brute
+  (5 échecs / 5 min → blocage), credential stuffing, pays non autorisé (GeoIP), connexion hors horaires, élévation de privilèges,
+  injection SQL, pic d'erreurs (> 100/h), silence (désactivée par défaut).
+- **Éditeur** (`/alerts/rules`) : requête Elasticsearch `query_string`, **test avant activation** (groupes qui déclencheraient +
+  requête exacte), activation/désactivation, suppression des règles personnalisées. Administrateur seulement pour enregistrer.
+- **Worker séparé** (`alert-worker`, `python -m app.alerting.worker`) : cycle toutes les 30 s, verrou Redis (un seul exécutant),
+  battement de cœur, erreur d'une règle enregistrée sans bloquer les autres, reprise après exception. Choix assumé : boucle simple
+  plutôt que Celery (pas de broker ni de beat pour un seul job périodique, ~150 Mo économisés), propriétés équivalentes testées.
+- **Anti-bruit** : *silencing* (une seule alerte par règle + groupe tant qu'elle est ouverte, seules les occurrences augmentent) et
+  *cooldown* configurable par règle (clé Redis à durée de vie).
+- **Notifications** : e-mail SMTP (Mailpit en laboratoire, <http://localhost:8025>) avec modèle HTML, graphique PNG des événements en
+  pièce jointe et liens ; webhook générique, Slack, Discord, Teams ou modèle JSON personnalisé ; **retry** 3 essais (1 s, 2 s) ;
+  chaque tentative est enregistrée sur l'alerte. Récepteur de démonstration intégré (`/hooks/demo/<jeton>`).
+- **Incidents** : prise en compte → résolution avec note, historique, alertes par jour, top 10 des règles, **MTTR** ; copie des
+  alertes dans Elasticsearch pour Kibana. Alertes visuelles : badge dans la navigation, compteur dans le titre de l'onglet,
+  notification du navigateur sur demande.
+- **SOAR-lite** : blocage d'IP **local** (l'application répond 403), durée limitée (15 min par défaut), liste `BLOCK_NEVER`,
+  déblocage manuel (interface ou `flask --app app.main unblock-ip <ip>`), historique MongoDB et audit. Aucune action réseau.
+- **Boucle complète réelle** : les connexions à l'application elle-même sont envoyées à Logstash ; une force brute contre la page de
+  connexion est donc détectée et bloquée de bout en bout (`verify_s4.py --self-block`).
+- **Scénario reproductible** : `scripts/simulate_attack.py` (adresses de documentation RFC 5737, une seule IP publique d'exemple
+  pour la GeoIP).
 
-## Sécurité et persistance
+## Preuves sur la stack réelle (13 novembre 2026)
 
-- Tous les ports de développement sont liés à `127.0.0.1`.
-- `xpack.security.enabled=false` est accepté uniquement pour ce laboratoire local isolé ; cette configuration n’est pas adaptée à la production ni à une exposition réseau.
-- Les positions Logstash sont persistées dans le volume `logstash-data`, sous `/usr/share/logstash/data`, et non dans `/tmp`.
-- Les entrées fichier utilisent `file_completed_action => "log"` : leur achèvement est journalisé et les sources `auth.jsonl` et `firewall.csv` restent présentes après ingestion.
-- L’arrêt normal est `docker compose down` sans `-v`, afin de conserver les volumes.
+- `docs/evidence/verify_s3.json` : **13/13** — 2 data views (champs runtime), 12 visualisations, dashboard, export de 15 objets et ré-import sans erreur, iframe, champs du mapping réel, 525 documents, carte de chaleur calculée par Elasticsearch, page `/kibana` de l'application.
+- `docs/evidence/verify_s4.json` : **21/21** (détail ci-dessus). Option non encore exécutée : `--self-block` (auto-protection de la page de connexion).
+- Historique : `verify_s3_2026-11-07.json` (11/11, première version à 4 visualisations), `verify_s2.json` (18/18), `CORE_VALIDATION_2026-10-31.md` (8/8).
 
-## Non réalisé ou non validé
+## Limites assumées
 
-- Authentification et rôles : non développés.
-- Upload CSV/JSON/TXT via Flask, aperçu et métadonnées MongoDB : non développés.
-- Recherche applicative, pagination, détail et export CSV : non développés.
-- Trois visualisations de sécurité et dashboard Kibana exporté : non réalisés ; seule la data view et Discover sont validés.
-- Alerting G, blocage TTL, temps réel H, Kafka, ML et NLP : non développés ou non exécutés.
-- Source historique OpenSSH complète : non intégrée et non comptée.
-- Installation sur une seconde machine : non testée.
+- La normalisation est faite par l'application, Logstash est la seconde validation ; horodatages sans fuseau supposés UTC et signalés.
+- Motifs `sshd` du parseur TXT heuristiques, non mesurés sur le corpus OpenSSH complet (KAN-15).
+- Les règles « anomalie détectée » viendront avec le module ML (S6) ; l'escalade et le *snooze* des alertes sont prévus en S5.
+- La mesure mémoire avec la webapp, le worker et Mailpit reste à refaire (`scripts/feasibility.ps1`, KAN-14). Ajout S4 :
+  `alert-worker` 160 Mo et `mailpit` 64 Mo de limite.
+- Gestion des utilisateurs par l'interface : non prévue (création par la CLI).
 
 ## Git et coordination externe
 
-- Le dépôt distant existe : <https://github.com/syrinemrf/CampusGuard>.
-- Le travail est publié sur `feat/core-infrastructure` dans la [Pull Request #1](https://github.com/syrinemrf/CampusGuard/pull/1), ouverte vers `main` ; le contrôle GitGuardian est réussi.
-- Les preuves et le lien de PR ont été ajoutés aux tickets Jira `KAN-13`, `KAN-14`, `KAN-16`, `KAN-17` et `KAN-18`, sans changement de statut.
-- Le suivi reste en Kanban avec WIP maximal de 2 ; aucune tâche ne doit être clôturée sans preuve réelle.
+- Dépôt : <https://github.com/syrinemrf/CampusGuard>, branche `feat/s2-auth-upload-search`.
+- Jira (`KAN`) est tenu à jour avec, pour chaque ticket, ce qui est fait, la preuve et ce qui manque.
 
-## Prochaine tranche
+## Prochaine tranche (S5)
 
-Développer verticalement l’authentification/session et l’upload validé CSV/JSON/TXT, avec aperçu, métadonnées MongoDB, statuts, rejets et test d’intégration jusqu’à Elasticsearch. Kafka, ML et NLP restent hors périmètre tant que le MVP obligatoire n’est pas couvert.
+Escalade et *snooze* des alertes, flux continu et *live tail* WebSocket, KPI temps réel, rapport PDF mensuel de conformité,
+mesure de latence ; puis S6 (Isolation Forest vs règles, TF-IDF vs MiniLM, tests de charge) et S7 (recette, rapport, vidéo).

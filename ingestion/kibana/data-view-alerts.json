@@ -1,0 +1,10 @@
+{
+  "data_view": {
+    "id": "campusguard-alerts",
+    "name": "CampusGuard alertes",
+    "title": "sentinel-alerts*",
+    "timeFieldName": "@timestamp",
+    "allowNoIndex": true
+  },
+  "override": true
+}

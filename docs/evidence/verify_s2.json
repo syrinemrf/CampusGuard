@@ -1,0 +1,96 @@
+{
+  "date_utc": "2026-11-07T07:54:17.462069+00:00",
+  "base_url": "http://localhost:8000",
+  "checks": [
+    {
+      "name": "Dépendances prêtes (/ready)",
+      "passed": true,
+      "detail": "{\"elasticsearch\": \"ok\", \"mongodb\": \"ok\", \"redis\": \"ok\"}"
+    },
+    {
+      "name": "Connexion (session Redis)",
+      "passed": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "name": "Accès refusé sans session",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Upload validé (HTTP 201)",
+      "passed": true,
+      "detail": "HTTP 201 état=validated"
+    },
+    {
+      "name": "Validation : 20 lignes valides, 2 invalides détectées",
+      "passed": true,
+      "detail": "{'blank_lines': 0, 'invalid_rows': 2, 'total_rows': 22, 'valid_rows': 20}"
+    },
+    {
+      "name": "Aperçu : 10 lignes brutes",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Doublon refusé (409)",
+      "passed": true,
+      "detail": "HTTP 409"
+    },
+    {
+      "name": "Fichier binaire refusé (422)",
+      "passed": true,
+      "detail": "HTTP 422"
+    },
+    {
+      "name": "Extension interdite refusée (415)",
+      "passed": true,
+      "detail": "HTTP 415"
+    },
+    {
+      "name": "Ingestion lancée (202)",
+      "passed": true,
+      "detail": "HTTP 202"
+    },
+    {
+      "name": "Statut final mesuré = indexé",
+      "passed": true,
+      "detail": "état=indexed indexés=20 rejetés=0"
+    },
+    {
+      "name": "Recherche par import : 20 événements",
+      "passed": true,
+      "detail": "total=20"
+    },
+    {
+      "name": "Filtre résultat=failure : 7 événements",
+      "passed": true,
+      "detail": "total=7"
+    },
+    {
+      "name": "Recherche plein texte",
+      "passed": true,
+      "detail": "total=1"
+    },
+    {
+      "name": "Filtre IP exacte",
+      "passed": true,
+      "detail": "total=1"
+    },
+    {
+      "name": "Export CSV identique (20 lignes + en-tête)",
+      "passed": true,
+      "detail": "20 lignes"
+    },
+    {
+      "name": "Détail d’un événement (champs ECS + labels.upload_id)",
+      "passed": true,
+      "detail": "index=logs-upload-2026.11.07"
+    },
+    {
+      "name": "Historique MongoDB enregistré",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}
