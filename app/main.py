@@ -254,6 +254,20 @@ def register_cli(app):
         done = Blocklist(stores.redis, stores.db, app.extensions['sentinel_config']).unblock(ip, 'cli')
         click.echo(f'{ip} débloquée.' if done else f'{ip} n’était pas bloquée.')
 
+    @app.cli.command('set-password')
+    @click.argument('username')
+    @click.password_option()
+    def set_password(username, password):
+        """Set a new password for an existing account (e.g. a seed password that was lost). Audited."""
+        from app.services.users import record_audit
+        db = app.extensions['sentinel_stores'].db
+        try:
+            UserStore(db).set_password(username, password)
+        except ValueError as exc:
+            raise click.ClickException(str(exc))
+        record_audit(db, 'cli', 'password_reset', target=username.strip().lower())
+        click.echo(f'Mot de passe de {username} modifié.')
+
     @app.cli.command('create-user')
     @click.argument('username')
     @click.argument('role', type=click.Choice([ROLE_ADMIN, ROLE_ANALYST, ROLE_AUDITOR]))

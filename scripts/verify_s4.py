@@ -27,6 +27,19 @@ import requests
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import simulate_attack  # noqa: E402
 
+
+def default_es_url():
+    """Elasticsearch URL as published by docker compose: ELASTICSEARCH_PORT from the environment or .env (default 9200)."""
+    import os
+    port = os.getenv('ELASTICSEARCH_PORT')
+    env = pathlib.Path(__file__).resolve().parents[1] / '.env'
+    if not port and env.exists():
+        for line in env.read_text(encoding='utf-8', errors='ignore').splitlines():
+            if line.strip().startswith('ELASTICSEARCH_PORT='):
+                port = line.split('=', 1)[1].strip()
+    return f'http://localhost:{port or 9200}'
+
+
 RESULTS = []
 UNREACHABLE = """La stack n'est pas joignable sur {url} (connexion refusée). Démarrez Docker Desktop, attendez « Engine running », puis : docker compose up -d --build --wait --wait-timeout 600 et docker compose ps (tout « healthy »). Aucune preuve n'est écrite."""
 
@@ -80,7 +93,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--app-url', default='http://localhost:8000')
     ap.add_argument('--logstash-url', default='http://localhost:8088')
-    ap.add_argument('--elasticsearch-url', default='http://localhost:9200')
+    ap.add_argument('--elasticsearch-url', default=default_es_url(), help='défaut : port ELASTICSEARCH_PORT de .env')
     ap.add_argument('--mailpit-url', default='http://localhost:8025')
     ap.add_argument('--username', required=True)
     ap.add_argument('--password', required=True)
@@ -98,6 +111,8 @@ def main():
         print('[STOP] ' + UNREACHABLE.format(url=args.app_url))
         return 2
     if not check('Connexion administrateur à l’application', app.status == 200, f'HTTP {app.status}'):
+        print('       Mot de passe refusé : vérifiez SEED_..._PASSWORD dans .env, ou redéfinissez-le avec '
+              'docker compose exec webapp flask --app app.main set-password <compte>')
         return finish(args)
     rules = app.get('/api/alerts/rules').json().get('rules', [])
     enabled = {r['id'] for r in rules if r['enabled']}
@@ -213,11 +228,13 @@ def self_block(app, args):
 def finish(args):
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     print(f'\n{passed}/{len(RESULTS)} contrôles réussis.')
-    if args.evidence:
+    if args.evidence and RESULTS and passed == len(RESULTS):
         with open(args.evidence, 'w', encoding='utf-8') as fh:
             json.dump({'date_utc': datetime.now(timezone.utc).isoformat(), 'app_url': args.app_url,
                        'checks': [{'name': n, 'passed': ok, 'detail': d} for n, ok, d in RESULTS]}, fh, ensure_ascii=False, indent=2)
         print(f'Preuve écrite dans {args.evidence}')
+    elif args.evidence:
+        print(f'Preuve NON écrite ({args.evidence} inchangé) : corrigez les contrôles en échec puis relancez.')
     return 0 if RESULTS and passed == len(RESULTS) else 1
 
 

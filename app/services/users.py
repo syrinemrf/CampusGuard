@@ -75,6 +75,15 @@ class UserStore:
             raise ValueError(f'L’utilisateur « {username} » existe déjà.') from exc
         return User(doc)
 
+    def set_password(self, username, password):
+        """Replace the password of an existing account (CLI only; the old one is not needed)."""
+        if len(password or '') < MIN_PASSWORD_LENGTH:
+            raise ValueError(f'Mot de passe trop court (minimum {MIN_PASSWORD_LENGTH} caractères).')
+        result = self.col.update_one({'username': (username or '').strip().lower()},
+                                     {'$set': {'password_hash': generate_password_hash(password)}})
+        if result.matched_count != 1:
+            raise ValueError(f'Compte « {username} » introuvable.')
+
     def authenticate(self, username, password):
         """Return the User for valid credentials of an active account, else None."""
         user = self.by_username(username or '')

@@ -24,6 +24,19 @@ from app.kibana import ALERTS_DATA_VIEW_ID, DASHBOARD_ID as DASHBOARD, RUNTIME_F
 
 VIS = list(VISUALIZATION_IDS.values())
 UNREACHABLE = """La stack n'est pas joignable sur {url} (connexion refusée). Démarrez Docker Desktop, attendez « Engine running », puis : docker compose up -d --build --wait --wait-timeout 600 et docker compose ps (tout « healthy »). Aucune preuve n'est écrite."""
+
+def default_es_url():
+    """Elasticsearch URL as published by docker compose: ELASTICSEARCH_PORT from the environment or .env (default 9200)."""
+    import os
+    port = os.getenv('ELASTICSEARCH_PORT')
+    env = pathlib.Path(__file__).resolve().parents[1] / '.env'
+    if not port and env.exists():
+        for line in env.read_text(encoding='utf-8', errors='ignore').splitlines():
+            if line.strip().startswith('ELASTICSEARCH_PORT='):
+                port = line.split('=', 1)[1].strip()
+    return f'http://localhost:{port or 9200}'
+
+
 RESULTS = []
 
 
@@ -36,7 +49,7 @@ def check(name, ok, detail=''):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--kibana-url', default='http://localhost:5601')
-    ap.add_argument('--elasticsearch-url', default='http://localhost:9200')
+    ap.add_argument('--elasticsearch-url', default=default_es_url(), help='défaut : port ELASTICSEARCH_PORT de .env')
     ap.add_argument('--app-url')
     ap.add_argument('--username')
     ap.add_argument('--password')
@@ -116,7 +129,10 @@ def main():
         app = args.app_url.rstrip('/')
         s = requests.Session()
         r = s.post(f'{app}/api/auth/login', json={'username': args.username, 'password': args.password}, timeout=15)
-        if check('Connexion à l’application', r.status_code == 200, f'HTTP {r.status_code}'):
+        if not check('Connexion à l’application', r.status_code == 200, f'HTTP {r.status_code}'):
+            print('       Mot de passe refusé : vérifiez SEED_..._PASSWORD dans .env, ou redéfinissez-le avec '
+                  'docker compose exec webapp flask --app app.main set-password <compte>')
+        else:
             r = s.get(f'{app}/kibana', timeout=15)
             check('Page /kibana de l’application avec iframe du dashboard', r.status_code == 200 and '<iframe' in r.text and DASHBOARD in r.text,
                   f"HTTP {r.status_code} frame-src={'frame-src' in r.headers.get('Content-Security-Policy', '')}")
@@ -126,11 +142,13 @@ def main():
 def finish(args):
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     print(f'\n{passed}/{len(RESULTS)} contrôles réussis.')
-    if args.evidence:
+    if args.evidence and RESULTS and passed == len(RESULTS):
         with open(args.evidence, 'w', encoding='utf-8') as fh:
             json.dump({'date_utc': datetime.now(timezone.utc).isoformat(), 'kibana_url': args.kibana_url,
                        'checks': [{'name': n, 'passed': ok, 'detail': d} for n, ok, d in RESULTS]}, fh, ensure_ascii=False, indent=2)
         print(f'Preuve écrite dans {args.evidence}')
+    elif args.evidence:
+        print(f'Preuve NON écrite ({args.evidence} inchangé) : corrigez les contrôles en échec puis relancez.')
     return 0 if passed == len(RESULTS) else 1
 
 
