@@ -1,6 +1,6 @@
 'use strict';
 (function () {
-  const { el, api, fmtDate } = window.Sentinel;
+  const { el, api, fmtDate, eventRows } = window.Sentinel;
   const form = document.getElementById('search-form');
   if (!form) return;
   const $ = (id) => document.getElementById(id);
@@ -68,8 +68,9 @@
         el('td', { text: h.service || '—' }), el('td', { class: 'mono', text: h.ip || '—' }),
         el('td', { text: h.user || '—' }),
         el('td', { text: h.outcome || '—' }), el('td', { class: 'msg', text: h.message }),
-        el('td', {}, el('a', { class: 'btn s', href: '/events/' + encodeURIComponent(h.id), text: 'Détails', onclick: (e) => e.stopPropagation() })));
-      const open = () => { window.location.href = '/events/' + encodeURIComponent(h.id); };
+        el('td', {}, el('a', { class: 'btn s', href: '/events/' + encodeURIComponent(h.id), text: 'Détails',
+          onclick: (e) => { if (e.ctrlKey || e.metaKey || e.shiftKey) { e.stopPropagation(); return; } e.preventDefault(); e.stopPropagation(); openDetail(h.id, row); } })));
+      const open = () => openDetail(h.id, row);
       row.addEventListener('click', open);
       row.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
       body.append(row);
@@ -83,6 +84,33 @@
     $('export-link').href = '/api/search/export?' + exp.toString();
     loadHistory();
   }
+
+  /* Detail modal (KAN-44): same data as /events/<id>, without leaving the result list. */
+  const dlg = $('event-dialog');
+  let lastRow = null;
+  async function openDetail(id, row) {
+    lastRow = row;
+    $('dlg-error').classList.add('hidden');
+    $('dlg-fields').replaceChildren(); $('dlg-message').textContent = 'Chargement…'; $('dlg-source').textContent = '';
+    $('dlg-page').href = '/events/' + encodeURIComponent(id);
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else { window.location.href = $('dlg-page').href; return; }
+    const { ok, data } = await api('/api/events/' + encodeURIComponent(id));
+    if (!ok) {
+      $('dlg-error').textContent = data.message || 'Événement introuvable.';
+      $('dlg-error').classList.remove('hidden'); $('dlg-message').textContent = '';
+      return;
+    }
+    const s = data.summary;
+    $('dlg-title').textContent = (s.action || 'événement') + ' · ' + (s.outcome || 'inconnu');
+    $('dlg-fields').replaceChildren(...eventRows(data));
+    $('dlg-message').textContent = s.message;
+    $('dlg-source').textContent = JSON.stringify(data.source, null, 2);
+    $('dlg-ip').classList.toggle('hidden', !s.ip);
+    if (s.ip) $('dlg-ip').href = '/search?ip=' + encodeURIComponent(s.ip);
+  }
+  $('dlg-close').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });       // click on the backdrop
+  dlg.addEventListener('close', () => { if (lastRow) lastRow.focus(); });             // focus back to the row
 
   function markSort() {
     document.querySelectorAll('.thbtn').forEach((b) => {

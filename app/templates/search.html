@@ -24,4 +24,15 @@
   <div class="tw"><table id="results"><thead><tr><th aria-sort="none"><button class="thbtn" type="button" data-sort="timestamp">Date / heure (UTC)</button></th><th aria-sort="none"><button class="thbtn" type="button" data-sort="level">Niveau</button></th><th aria-sort="none"><button class="thbtn" type="button" data-sort="service">Service</button></th><th>IP</th><th>Utilisateur</th><th>Résultat</th><th>Message</th><th>Actions</th></tr></thead><tbody></tbody></table></div>
   <nav class="pager" aria-label="Pagination"><button class="btn s" id="prev" type="button">Précédent</button><span id="page-info"></span><button class="btn s" id="next" type="button">Suivant</button></nav>
 </section>
+<dialog id="event-dialog" class="modal" aria-labelledby="dlg-title">
+  <div class="modal-h"><h2 id="dlg-title">Détail de l’événement</h2><button class="btn s" type="button" id="dlg-close">Fermer</button></div>
+  <div class="modal-b">
+    <div id="dlg-error" class="alert err hidden" role="alert"></div>
+    <dl class="kv" id="dlg-fields"></dl>
+    <h3>Message</h3><pre class="raw" id="dlg-message"></pre>
+    <details><summary>Document Elasticsearch complet (<code>_source</code>)</summary><pre class="raw" id="dlg-source"></pre></details>
+    <div class="actions"><a class="btn s" id="dlg-page" href="#">Ouvrir la page dédiée (lien partageable)</a><a class="btn s" id="dlg-ip" href="#">Tous les événements de cette IP</a></div>
+    <p class="sub small">La géolocalisation d’une IP est approximative et ne prouve pas l’emplacement physique d’un utilisateur.</p>
+  </div>
+</dialog>
 {% endblock %}

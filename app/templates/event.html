@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Détail d’un événement{% endblock %}
 {% block h1 %}Détail de l’événement{% endblock %}
+{% block crumbs %}<a href="{{ url_for('web.search_page') }}">Explorateur de logs</a><span aria-current="page">Détail</span>{% endblock %}
 {% block head %}<script src="{{ url_for('static', filename='js/event.js') }}" defer></script>{% endblock %}
 {% block content %}
 <div id="event-app" data-event-id="{{ event_id }}">

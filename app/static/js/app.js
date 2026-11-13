@@ -44,5 +44,15 @@ window.Sentinel = (function () {
     });
   });
 
-  return { csrf, el, api, fmtDate, fmtBytes };
+  /* Event detail rows, shared by the search modal and the dedicated /events/<id> page. */
+  function eventRows(data) {
+    const s = data.summary;
+    return [['Horodatage (UTC)', fmtDate(s.timestamp)], ['Niveau', s.level], ['Service', s.service], ['IP source', s.ip],
+      ['Utilisateur', s.user], ['Action', s.action], ['Résultat', s.outcome], ['Catégorie', s.category],
+      ['Origine du temps', s.time_mode === 'ingest' ? 'heure de réception (pas de temps source)' : 'temps source'],
+      ['Import', s.upload_id], ['Index', data.index], ['Identifiant', data.id]]
+      .flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v || '—' })]);
+  }
+
+  return { csrf, el, api, fmtDate, fmtBytes, eventRows };
 })();

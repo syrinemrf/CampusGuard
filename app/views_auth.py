@@ -1,7 +1,7 @@
 """Authentication: HTML login form, JSON login, logout, current user."""
 from urllib.parse import urlparse
 
-from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
 
 from app.security import LoginThrottle, ROLE_LABELS, csrf_token, error_response, roles_required
@@ -76,6 +76,8 @@ def logout():
         record_audit(stores.db, current_user.username, 'logout', ip=request.remote_addr)
     logout_user()
     session.clear()
+    session.rotate = True  # the old session id is destroyed in Redis; the flash message lives in a fresh one
+    flash('Vous êtes déconnecté(e). À bientôt !', 'ok')
     return redirect(url_for('auth.login'))
 
 

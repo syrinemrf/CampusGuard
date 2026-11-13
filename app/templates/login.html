@@ -13,6 +13,7 @@
   <form class="cd" method="post" action="{{ url_for('auth.login', next=next or None) }}">
     <h1 class="login-title">CampusGuard · Sentinel</h1>
     <p class="sub">Connexion à la plateforme de laboratoire. Les comptes sont créés par un administrateur.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert {{ category }}" role="status">{{ message }}</div>{% endfor %}{% endwith %}
     {% if error %}<div class="alert err" role="alert">{{ error }}</div>{% endif %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label for="username">Nom d’utilisateur</label>
