@@ -382,7 +382,7 @@ Configuration : AOF activée, `maxmemory 96mb`, politique `allkeys-lru`. **Point
 | Statut d'import mesuré dans Elasticsearch | statut déduit de la réponse HTTP | exigence d'honnêteté : « indexé » doit être vrai |
 | Visualisations Kibana générées par script, vérifiées contre le mapping | export manuel depuis l'interface | reproductible, relisible, testable |
 | Pas de Kafka dans CORE | pipeline Kafka dès S2 | ≈ 1 Go de RAM économisé ; profil `stream` conservé pour une éventuelle expérience mesurée |
-| Pas de Celery avant S4 | worker dès S2 | aucun besoin asynchrone tant que l'alerting n'existe pas |
+| Pas de Celery (worker S4 = boucle simple) | Celery + beat | un seul job périodique : verrou Redis, idempotence et reprise explicites, ~150 Mo économisés |
 | `mongomock` / `fakeredis` / faux Elasticsearch en test | conteneurs en test | tests rapides (≈ 20 s) et sans Docker ; compensé par les scripts de vérification sur la pile réelle |
 | Chart.js et Swagger UI embarqués localement | CDN | CSP stricte et fonctionnement hors ligne |
 
@@ -400,22 +400,39 @@ Configuration : AOF activée, `maxmemory 96mb`, politique `allkeys-lru`. **Point
 | `scripts/verify_s2.py` | login → upload → validation → Logstash → Elasticsearch → statut → recherche → export → détail | **à exécuter** (18 contrôles) |
 | `scripts/verify_s3.py` | objets Kibana présents et reliés, export puis réimport, intégration en iframe, champs présents dans le mapping réel | **à exécuter** |
 
-## 15. Évolutions prévues (non implémentées)
+## 15. Alerting et réponse SOAR-lite (S4, implémenté le 13 novembre 2026)
 
 ```mermaid
 flowchart LR
-  ES[(Elasticsearch)] -->|requêtes périodiques| W[Worker de détection<br/>Celery]
-  W -->|fenêtre glissante| R[(Redis)]
-  W -->|alerte + audit| M[(MongoDB)]
-  W -->|SET blocked:ip EX 3600| R
-  W -->|publication| P[Pub/Sub · Stream]
-  P --> WS[WebSocket Flask<br/>live tail · KPI]
-  WS --> B[Navigateur]
-  M --> UI[Tableau d'alertes · incidents]
+  SRC[Sources + connexions à l'application] --> LS[Logstash json-security]
+  LS --> ES[(Elasticsearch logs-*)]
+  W[alert-worker<br/>boucle 30 s · verrou Redis] -->|query_string + agrégations| ES
+  W -->|alertes, règles, historique| M[(MongoDB alerts · alert_rules · ip_blocks)]
+  W -->|cooldown · blocklist TTL · battement de cœur| R[(Redis)]
+  W -->|copie| EA[(ES sentinel-alerts-*)]
+  W -->|SMTP| MP[Mailpit :8025]
+  W -->|webhook + retry| WH[Récepteur démo / Slack / Discord / Teams]
+  R -->|403 si IP bloquée| F[Flask]
+  F --> UI[Alertes · règles · centre de pilotage]
+  EA --> K[Kibana : alertes par gravité / règle]
 ```
 
-- **S4 (module G)** : éditeur de règles, worker Celery, déduplication et cooldown, notifications e-mail/webhook, incidents, blocage d'IP de laboratoire (TTL Redis, audit) — jamais de règle de pare-feu du poste.
-- **S5 (module H)** : flux continu, WebSocket avec reconnexion, KPI en direct, mesure de latence, rapport mensuel.
+- **Règles** (`alert_rules`) : seuil, valeurs distinctes, motif regex, silence ; fenêtre 5 min à 24 h ; regroupement par IP, compte
+  ou service ; option hors horaires via le champ runtime `hour_of_day` (le même que la carte de chaleur Kibana).
+- **Worker** : processus séparé, même image que la webapp. Pas de Celery : un seul job périodique ne justifie ni broker ni beat ;
+  le verrou `SET NX EX`, l'idempotence (empreinte règle + groupe), la reprise après erreur et le battement de cœur sont explicites et
+  testés. Cela économise environ 150 Mo sur une machine déjà chargée par ELK.
+- **Cycle de vie** : `open → acknowledged → resolved` ; *silencing* tant qu'une alerte de même empreinte est active ; *cooldown* Redis
+  après création ; MTTR = moyenne (résolution − déclenchement).
+- **Réponse** : `sentinel:blocklist:<ip>` avec TTL, vérifiée par un `before_request` Flask (403), liste `BLOCK_NEVER`, historique
+  `ip_blocks` et audit. Aucune règle de pare-feu, aucune action réseau.
+- **Notifications** : e-mail HTML + graphique PNG (encodeur PNG minimal, sans dépendance) + liens ; webhook générique, Slack, Discord,
+  Teams ou modèle JSON ; 3 essais avec attente exponentielle ; chaque tentative est conservée sur l'alerte.
+
+### Évolutions prévues (non implémentées)
+
+- **S5 (module H)** : escalade et *snooze*, flux continu, WebSocket avec reconnexion (live tail, KPI en direct), mesure de latence,
+  rapport mensuel de conformité.
 - **S6** : comparaison règles / Isolation Forest, TF-IDF / MiniLM, tests de charge, sécurité et reprise.
 
 ## 16. Hypothèses et écarts documentés

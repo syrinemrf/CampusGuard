@@ -1,4 +1,4 @@
-# API REST CampusGuard / Sentinel (S2)
+# API REST CampusGuard / Sentinel (S2 → S4)
 
 Spécification machine-lisible : `GET /api/openapi.json` (OpenAPI 3.0.3).
 Documentation interactive : <http://localhost:8000/api/docs> (Swagger UI embarqué, aucune ressource externe).
@@ -38,6 +38,39 @@ Format d'erreur unique : `{"error": "<code>", "message": "<texte>", ...}`.
 | GET | `/api/v1/files` | auditor | Alias de `/api/uploads` |
 | GET | `/api/v1/stats` | auditor | Alias de `/api/stats` |
 | GET | `/api/openapi.json` | auditor | Spécification OpenAPI |
+| GET | `/api/overview` | auditor | Centre de pilotage (`period=24h|7d|30d|90d`) : KPI comparés, IP prioritaires, santé, alertes |
+| GET/PUT/DELETE | `/api/dashboard/prefs` | auditor | Blocs affichés et période mémorisée de l’utilisateur |
+| GET | `/api/alerts` | auditor | Alertes (`status=active|open|acknowledged|resolved`, `severity`, `rule`, `limit`) |
+| GET | `/api/alerts/summary` | auditor | Résumé interrogé toutes les 20 s par l’interface (badge, titre, notification) |
+| GET | `/api/alerts/stats` | auditor | Alertes par jour, top 10 des règles, MTTR, ouvertes par gravité |
+| GET | `/api/alerts/{id}` | auditor | Détail : historique, notifications, réponse |
+| POST | `/api/alerts/{id}/acknowledge` | analyst | Prise en compte (`409` si l’état ne le permet pas) |
+| POST | `/api/alerts/{id}/resolve` | analyst | Résolution avec `{"note": "…"}` (calcule le délai de résolution) |
+| POST | `/api/alerts/run` | admin | Évalue les règles immédiatement (démonstration ; `409` si le worker tourne déjà) |
+| GET | `/api/alerts/rules` | auditor | Règles |
+| POST | `/api/alerts/rules` | admin | Créer une règle (`400` + `details` si invalide) |
+| POST | `/api/alerts/rules/test` | analyst | **Tester sans enregistrer** : groupes qui déclencheraient + requête Elasticsearch |
+| PUT / DELETE | `/api/alerts/rules/{id}` | admin | Modifier / supprimer |
+| POST | `/api/alerts/rules/{id}/enabled` | admin | `{"enabled": true|false}` |
+| GET | `/api/blocklist` | auditor | IP bloquées (durée restante) + historique |
+| POST | `/api/blocklist` | admin | `{"ip", "minutes", "reason"}` — effet local uniquement |
+| DELETE | `/api/blocklist/{ip}` | admin | Débloquer (audité) |
+| GET | `/api/notifications/demo` | analyst | Derniers webhooks reçus par le récepteur de démonstration |
+
+Hors `/api` : `POST /hooks/demo/<jeton>` reçoit les webhooks en laboratoire (jeton `WEBHOOK_DEMO_TOKEN`, sans cookie ni CSRF).
+Une adresse bloquée reçoit `403 {"error": "ip_blocked", "until": …}` sur toutes les routes sauf `/health` et `/ready`.
+
+### Règle d’alerte (JSON)
+
+```json
+{"id": "brute-force-ip", "name": "Force brute : 5 échecs en 5 min depuis une IP", "type": "threshold",
+ "query": "event.outcome:failure AND event.category:authentication", "window": "5m", "group_by": "source.ip",
+ "threshold": 5, "severity": "high", "cooldown_minutes": 15, "enabled": true,
+ "actions": {"email": true, "webhook": true, "block_ip": true}}
+```
+
+`type` : `threshold` (nombre ≥ seuil), `cardinality` (valeurs distinctes de `distinct_field` ≥ seuil), `pattern` (regex `pattern` sur le message),
+`silence` (aucun événement). Option `outside_hours: [7, 20]` (heure de Tunis). `block_ip` exige `group_by: "source.ip"`.
 
 ### Paramètres de recherche
 
