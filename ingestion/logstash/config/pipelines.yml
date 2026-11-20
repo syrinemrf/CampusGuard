@@ -7,3 +7,7 @@
 - pipeline.id: upload-security
   path.config: "/usr/share/logstash/pipeline/upload.conf"
   pipeline.workers: 1
+- pipeline.id: stream-security
+  path.config: "/usr/share/logstash/pipeline/stream.conf"
+  pipeline.workers: 1
+  pipeline.batch.delay: 5

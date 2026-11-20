@@ -26,7 +26,7 @@ PERIODS = {
     '90d': {'label': '90 jours', 'math': '90d', 'delta': timedelta(days=90), 'interval': '7d'},
 }
 DEFAULT_PERIOD = '24h'
-SOURCES = {'logs-auth': 'Authentification (JSON / HTTP)', 'logs-firewall': 'Pare-feu (CSV)',
+SOURCES = {'logs-ssh': 'SSH en continu (Filebeat → Kafka)', 'logs-auth': 'Authentification (JSON / HTTP)', 'logs-firewall': 'Pare-feu (CSV)',
            'logs-upload': 'Fichiers importés'}
 CACHE_TTL = 30
 

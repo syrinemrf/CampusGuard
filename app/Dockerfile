@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY app /srv/app
 USER sentinel
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "2", "--timeout", "60", "app.main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "12", "--timeout", "60", "app.main:app"]

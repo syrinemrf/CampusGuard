@@ -195,6 +195,14 @@ def overview():
     return jsonify(OverviewService(_stores(), _cfg(), http=current_app.extensions.get('sentinel_http')).build(period))
 
 
+@bp.get('/stream/status')
+@roles_required()
+def stream_status():
+    """S5 : état mesuré de la chaîne temps réel (Filebeat, Kafka, Logstash, Elasticsearch, Redis) et latence."""
+    from app.services.stream import StreamStatus
+    return jsonify(StreamStatus(_stores(), _cfg(), http=current_app.extensions.get('sentinel_http')).build())
+
+
 # ------------------------------------------------------------------ OpenAPI + stable /api/v1 aliases
 
 @bp.get('/openapi.json')

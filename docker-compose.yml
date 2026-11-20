@@ -72,7 +72,8 @@ services:
     environment:
       LS_JAVA_OPTS: "-Xms384m -Xmx384m"
       XPACK_MONITORING_ENABLED: "false"
-    ports: ["127.0.0.1:5000:5000", "127.0.0.1:8088:8088"]
+      KAFKA_BOOTSTRAP: kafka:9092
+    ports: ["127.0.0.1:5000:5000", "127.0.0.1:8088:8088", "127.0.0.1:5140:5140"]
     volumes:
       - ./ingestion/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
       - ./ingestion/logstash/pipeline:/usr/share/logstash/pipeline:ro
@@ -82,6 +83,7 @@ services:
     depends_on:
       elasticsearch-init: {condition: service_completed_successfully}
       uploads-init: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9600/_node/pipelines/csv-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/json-security >/dev/null && curl -fsS http://localhost:9600/_node/pipelines/upload-security >/dev/null"]
       interval: 20s
@@ -244,6 +246,19 @@ services:
       retries: 20
       start_period: 30s
     networks: [sentinel]
+  kafka-init:
+    profiles: [stream]
+    image: apache/kafka:${KAFKA_VERSION:-3.9.1}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for t in logs.auth logs.firewall logs.honeypot logs.sim alerts; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic $$t --partitions 1 --replication-factor 1
+        done
+    depends_on:
+      kafka: {condition: service_healthy}
+    restart: "no"
+    networks: [sentinel]
   filebeat:
     profiles: [stream]
     image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION:-8.19.10}
@@ -252,12 +267,15 @@ services:
     command: ["filebeat", "-e", "-strict.perms=false"]
     volumes:
       - ./ingestion/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ./datasets:/data:ro
-    depends_on: [logstash]
+      - ./datasets/stream:/var/log/sentinel:ro
+      - filebeat-data:/usr/share/filebeat/data
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
     networks: [sentinel]
 networks:
   sentinel: {driver: bridge}
 volumes:
+  filebeat-data:
   es-data:
   logstash-data:
   uploads:

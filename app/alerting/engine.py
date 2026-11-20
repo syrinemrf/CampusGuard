@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from app.alerting import rules as R
 from app.alerting.blocklist import Blocklist, BlockError
 from app.alerting.notify import Notifier, png_bar_chart, search_link
+from app.live import publish_alert
 from app.services.users import record_audit
 from app.stores import ElasticError
 
@@ -133,6 +134,7 @@ class AlertEngine:
                                                                    'response': alert['response']}})
         alert['notifications'] = notifications
         self._mirror(alert)
+        publish_alert(self.redis, {**public, 'response': alert['response']})
         record_audit(self.db, 'alert-worker', 'alert_raised', target=alert['_id'], reason=rule['_id'],
                      details={'group': group['key'], 'severity': rule['severity']})
         return 'created'

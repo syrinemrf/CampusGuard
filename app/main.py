@@ -8,11 +8,12 @@ from urllib.parse import urlencode
 
 import click
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 from flask_login import LoginManager
 from pymongo import MongoClient
 from redis import Redis
 
+from app import live
 from app.config import Config
 from app.kibana import origin as kibana_origin
 from app.security import (ROLE_ADMIN, ROLE_ANALYST, ROLE_AUDITOR, ROLE_LABELS, RedisSessionInterface, check_csrf,
@@ -82,7 +83,17 @@ def create_app(config=None, stores=None):
             except Exception:  # noqa: BLE001 - MongoDB not reachable yet; retried on the next request
                 log.warning('MongoDB indexes not created yet (MongoDB unavailable)')
         limited = rate_limit(app, config)
-        return limited or check_csrf()
+        if limited:
+            return limited
+        if request.endpoint != 'live_socket':
+            from flask_login import current_user
+            g.live_token = live.request_started(app.extensions['sentinel_stores'].redis,
+                                                current_user.username if current_user.is_authenticated else None)
+        return check_csrf()
+
+    @app.teardown_request
+    def _finished(_exc):
+        live.request_finished(app.extensions['sentinel_stores'].redis, g.pop('live_token', None))
 
     @app.after_request
     def _security_headers(response):
@@ -92,6 +103,7 @@ def create_app(config=None, stores=None):
         response.headers.setdefault(
             'Content-Security-Policy',
             "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+            f"connect-src 'self' ws://{request.host} wss://{request.host}; "
             f"frame-src {kibana_origin(config.kibana_public_url)}; frame-ancestors 'none'")
         if request.path.startswith('/api/'):
             response.headers.setdefault('Cache-Control', 'no-store')
@@ -114,6 +126,7 @@ def create_app(config=None, stores=None):
         log.exception('unhandled error: %s', exc)
         return error_response(500, 'server_error', 'Erreur interne. Consultez les journaux du service.')
 
+    live.register(app)
     register_health(app)
     register_cli(app)
     return app

@@ -80,3 +80,37 @@ def api_docs():
 @roles_required()
 def event_page(event_id):
     return render_template('event.html', page='search', event_id=event_id)
+
+
+@bp.get('/live')
+@roles_required()
+def live_page():
+    """Module H : flux continu poussé par WebSocket (aucune interrogation périodique)."""
+    return render_template('live.html', page='live', ws_enabled=current_app.extensions.get('sentinel_live', False))
+
+
+@bp.get('/sources')
+@roles_required()
+def sources_page():
+    """Sources & chaîne temps réel : état mesuré de chaque maillon, latence, services."""
+    from app.services.stream import StreamStatus
+    stores = current_app.extensions['sentinel_stores']
+    cfg = current_app.extensions['sentinel_config']
+    http = current_app.extensions.get('sentinel_http')
+    status = StreamStatus(stores, cfg, http=http).build()
+    ov = OverviewService(stores, cfg, http=http)
+    health = ov.health(_es_ok(stores))
+    try:
+        freshness = ov.freshness()
+    except ElasticError:
+        freshness = None
+    return render_template('sources.html', page='sources', st=status, health=health, freshness=freshness,
+                           fmt_age=fmt_age, service_names=SERVICE_NAMES, worker=ov.alerting().get('worker'))
+
+
+def _es_ok(stores):
+    try:
+        stores.es.search('logs-*', {'size': 0})
+        return True
+    except Exception:  # noqa: BLE001
+        return False

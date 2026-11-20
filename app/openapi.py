@@ -93,6 +93,8 @@ def build_spec():
             '/api/overview': {'get': {'tags': ['dashboard'], 'summary': 'Centre de pilotage : KPI d’authentification comparés à la période précédente, IP prioritaires, santé (services, pipelines Logstash, fraîcheur, rejets)',
                 'parameters': [{'name': 'period', 'in': 'query', 'schema': {'type': 'string', 'enum': ['24h', '7d', '30d', '90d']}, 'description': 'Par défaut : la période enregistrée de l’utilisateur.'}],
                 'responses': {'200': _ok('Données du centre de pilotage'), '401': _ERR}}},
+            '/api/stream/status': {'get': {'tags': ['dashboard'], 'summary': 'Chaîne temps réel : état mesuré de Filebeat, Kafka, Logstash (pipeline stream-security), Elasticsearch, Redis Pub/Sub ; latence de bout en bout (médiane, p95) ; requêtes en cours, utilisateurs connectés. Le flux lui-même est poussé sur la WebSocket /ws/live (hors API REST).',
+                'responses': {'200': _ok('État de la chaîne'), '401': _ERR}}},
             '/api/dashboard/prefs': {
                 'get': {'tags': ['dashboard'], 'summary': 'Blocs affichés et période du centre de pilotage (préférences de l’utilisateur)', 'responses': {'200': _ok('Préférences'), '401': _ERR}},
                 'put': {'tags': ['dashboard'], 'summary': 'Enregistrer les blocs affichés et/ou la période',

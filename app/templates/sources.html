@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Sources & chaîne temps réel{% endblock %}
+{% block h1 %}Sources &amp; chaîne temps réel{% endblock %}
+{% block content %}
+{% set labels = {'ok': 'opérationnel', 'idle': 'en attente', 'absent': 'non lancé', 'error': 'en erreur', 'degraded': 'dégradé'} %}
+{% set cls = {'ok': 'ok', 'idle': 'me', 'absent': 'mu', 'error': 'cr', 'degraded': 'me'} %}
+<section class="cd block">
+  <h2>Chaîne d’acquisition en continu</h2>
+  <p class="muted">Chaque maillon est interrogé séparément : si l’écran « Flux en direct » reste vide, le premier maillon qui n’est pas vert indique où chercher.
+    Mode actuel : <b>{% if st.kafka_mode %}Filebeat → Kafka → Logstash{% else %}TCP direct vers Logstash (Kafka non lancé){% endif %}</b>.</p>
+  <ol class="chain">
+    <li class="hop ok"><b>Journal sshd</b><small>/var/log/sentinel/sshd.log</small><span class="pl ok">source</span></li>
+    {% for h in st.chain %}
+    <li class="hop {{ h.status }}"><b>{{ h.label }}</b><small>{{ h.role }}</small><span class="pl {{ cls.get(h.status, 'mu') }}">{{ labels.get(h.status, h.status) }}</span><em>{{ h.detail }}</em></li>
+    {% endfor %}
+    <li class="hop ok"><b>Navigateur</b><small>WebSocket /ws/live</small><span class="pl ok">{{ st.metrics.live_viewers if st.metrics.live_viewers is not none else '—' }} écran(s)</span></li>
+  </ol>
+</section>
+
+<div class="g g2 duo">
+  <section class="cd">
+    <h2>Latence de bout en bout</h2>
+    <p class="muted">De l’écriture de la ligne par sshd à sa réception par le serveur WebSocket, mesurée sur les {{ st.latency.samples }} dernières lignes. Objectif du sujet : moins d’une seconde.</p>
+    {% if st.latency.samples %}
+    <div class="synth-figs lat">
+      <div><span>Médiane</span><b>{{ st.latency.p50_ms }} ms</b></div>
+      <div><span>95ᵉ centile</span><b class="{{ 'warn' if st.latency.p95_ms >= 1000 }}">{{ st.latency.p95_ms }} ms</b></div>
+      <div><span>Sous 1 s</span><b>{{ st.latency.under_1s_pct }} %</b></div>
+      <div><span>Maximum</span><b>{{ st.latency.max_ms }} ms</b></div>
+    </div>
+    {% else %}<p class="muted">Aucune mesure : ouvrez <a href="{{ url_for('web.live_page') }}">Flux en direct</a> puis lancez <code>python scripts/replay_openssh.py</code>.</p>{% endif %}
+  </section>
+  <section class="cd">
+    <h2>Services</h2>
+    <ul class="svc-list">
+      {% for key, s in health.services.items() %}<li><i class="dot {{ 'ok' if s == 'ok' else 'err' }}" aria-hidden="true"></i>{{ service_names.get(key, key) }}<span class="pl {{ cls.get(s, 'cr') }}">{{ labels.get(s, s) }}</span></li>{% endfor %}
+      <li><i class="dot {{ 'ok' if worker else 'err' }}" aria-hidden="true"></i>Worker d’alertes<span class="pl {{ 'ok' if worker else 'cr' }}">{{ 'actif' if worker else 'sans battement' }}</span></li>
+    </ul>
+    <p class="muted small">Requêtes en cours : {{ st.metrics.active_requests if st.metrics.active_requests is not none else '—' }} · utilisateurs actifs (5 min) : {{ st.metrics.connected_users if st.metrics.connected_users is not none else '—' }}</p>
+  </section>
+</div>
+
+<section class="cd block">
+  <h2>Sources indexées</h2>
+  {% if freshness %}
+  <table><thead><tr><th>Source</th><th>Documents</th><th>24 h</th><th>Dernier événement</th></tr></thead><tbody>
+    {% for s in freshness.sources %}<tr><td>{{ s.label }}</td><td>{{ s.documents }}</td><td>{{ s.last24h }}</td><td>{{ 'il y a ' ~ fmt_age(s.age_seconds) if s.age_seconds is not none else '—' }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="muted">Elasticsearch injoignable.</p>{% endif %}
+  <h3 class="mt">Entrées disponibles</h3>
+  <table><thead><tr><th>Entrée</th><th>Format</th><th>Usage</th></tr></thead><tbody>
+    <tr><td>Kafka <code>logs.auth</code> (via Filebeat)</td><td>ligne syslog brute</td><td>serveurs qui écrivent un journal (sshd, auth.log)</td></tr>
+    <tr><td>TCP <code>localhost:5140</code></td><td>ligne syslog brute</td><td>même flux sans Kafka</td></tr>
+    <tr><td>HTTP <code>localhost:8088</code></td><td>JSON</td><td>webhooks, connexions à l’application elle-même</td></tr>
+    <tr><td>TCP <code>localhost:5000</code></td><td>JSON par ligne</td><td>scripts et simulateurs</td></tr>
+    <tr><td>Envoi de fichiers</td><td>CSV, JSON, TXT</td><td>import ponctuel par l’interface</td></tr>
+  </tbody></table>
+</section>
+{% endblock %}

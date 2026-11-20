@@ -3,19 +3,24 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 SOURCE = 'https://raw.githubusercontent.com/logpai/loghub/master/OpenSSH/OpenSSH_2k.log'
 PATTERN = re.compile(r'^(\w+\s+\d+\s+\d+:\d+:\d+)\s+(\S+)\s+sshd\[\d+\]:\s+(.*)$')
 IP = re.compile(r'(?<!\w)(?:\d{1,3}\.){3}\d{1,3}(?!\w)')
 USER = re.compile(r'(?:invalid user |for (?:invalid user )?)([\w.-]+)', re.I)
 
+from replay_openssh import pseudo_ip  # noqa: E402  (même pseudonymisation que le flux temps réel)
+
+
 def sanitize(text):
-    """Pseudonymize IPs and SSH usernames consistently, without leaking originals."""
-    text = IP.sub(lambda m: 'ip_' + hashlib.sha256(('campusguard-demo:'+m.group()).encode()).hexdigest()[:10], text)
+    """IP : /16 conservé (la GeoIP reste juste), fin hachée. Comptes SSH remplacés par un hachage stable."""
+    text = IP.sub(lambda m: pseudo_ip(*m.group().split('.')), text)
     text = USER.sub(lambda m: m.group(0)[:m.start(1)-m.start(0)] + 'user_' + hashlib.sha256(('campusguard-demo:'+m.group(1)).encode()).hexdigest()[:10], text)
     return text
 

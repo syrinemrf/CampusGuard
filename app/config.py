@@ -68,6 +68,13 @@ class Config:
     logstash_http_url: str = field(default_factory=lambda: os.getenv('LOGSTASH_HTTP_URL', 'http://logstash:8088').rstrip('/'))
     ship_auth_events: bool = field(default_factory=lambda: _bool('SHIP_AUTH_EVENTS', True))
     alert_timezone: str = _env('ALERT_TIMEZONE', 'Africa/Tunis')
+    # --- S5: flux continu et temps réel ---
+    kafka_bootstrap: str = _env('KAFKA_BOOTSTRAP', 'kafka:9092')
+    filebeat_api_url: str = field(default_factory=lambda: os.getenv('FILEBEAT_API_URL', 'http://filebeat:5066').rstrip('/'))
+    escalate_l2_minutes: int = field(default_factory=lambda: _int('ESCALATE_L2_MINUTES', 15))
+    escalate_l3_minutes: int = field(default_factory=lambda: _int('ESCALATE_L3_MINUTES', 60))
+    alert_email_to_l2: str = _env('ALERT_EMAIL_TO_L2', 'soc-n2@campusguard.lab')
+    alert_email_to_l3: str = _env('ALERT_EMAIL_TO_L3', 'rssi@campusguard.lab')
     testing: bool = False
 
     def __post_init__(self):

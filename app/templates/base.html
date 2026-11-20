@@ -28,8 +28,9 @@
   <a class="nv {% if page == 'alerts' %}on{% endif %}" href="{{ url_for('alerts.alerts_page') }}">Alertes &amp; incidents <span class="badge hidden" id="nav-alert-badge" aria-label="alertes ouvertes"></span></a>
   <a class="nv {% if page == 'rules' %}on{% endif %}" href="{{ url_for('alerts.rules_page') }}">Règles de détection</a>
   <button class="nv linkbtn hidden" type="button" id="notify-toggle">Activer les notifications</button>
-  <div class="grp">À venir (S5)</div>
-  <span class="nv soon" aria-disabled="true">Temps réel</span>
+  <div class="grp">Temps réel</div>
+  <a class="nv {% if page == 'live' %}on{% endif %}" href="{{ url_for('web.live_page') }}"><i class="live-dot" aria-hidden="true"></i>Flux en direct</a>
+  <a class="nv {% if page == 'sources' %}on{% endif %}" href="{{ url_for('web.sources_page') }}">Sources &amp; chaîne</a>
   <div class="me">
     <div class="av" aria-hidden="true" title="{{ current_user.username }} · {{ ROLE_LABELS[current_user.role] }}">{{ current_user.username[:1]|upper }}</div>
     <div class="who">{{ current_user.username }}<small>{{ ROLE_LABELS[current_user.role] }}</small></div>
@@ -44,7 +45,7 @@
   {% if page != 'home' %}<nav class="crumbs" aria-label="Fil d’Ariane"><a href="{{ url_for('web.home') }}">Accueil</a>{% block crumbs %}<span aria-current="page">{{ self.h1() }}</span>{% endblock %}</nav>{% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="alert {{ category if category in ('ok', 'err', 'warn', 'info') else 'info' }}" role="status">{{ message }}</div>{% endfor %}{% endwith %}
   {% block content %}{% endblock %}
-  <footer class="foot">CampusGuard · Sentinel — projet académique ITBS, encadrant M. Mohamed Najeh Issaoui · laboratoire local, données fictives ou synthétiques · <a href="{{ url_for('web.api_docs') }}">documentation de l’API</a></footer>
+  <footer class="foot">CampusGuard · Sentinel — projet académique ITBS, encadrant M. Mohamed Najeh Issaoui · laboratoire local, données synthétiques et journal sshd réel (Loghub, pseudonymisé) · <a href="{{ url_for('web.api_docs') }}">documentation de l’API</a></footer>
 </main>
 </div>
 </body>
