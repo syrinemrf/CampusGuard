@@ -78,6 +78,9 @@ class AlertEngine:
     # ------------------------------------------------------------ evaluation
     def evaluate(self, rule):
         """Run the rule's query; return the triggering groups (no side effect). Used by « Tester la règle »."""
+        if rule['type'] == 'anomaly':
+            from app.ml.online import OnlineDetector
+            return OnlineDetector(self.es, self.cfg.logs_index, lambda: self.now().timestamp()).groups(rule)
         raw = self.es.search(self.cfg.logs_index, R.build_query(rule))
         return R.matches(rule, raw)
 
@@ -123,6 +126,7 @@ class AlertEngine:
             'group_field': rule.get('group_by') or None, 'group': group['key'], 'count': group['count'],
             'value': group.get('value'), 'first_seen': group.get('first'), 'last_seen': group.get('last'),
             'samples': group.get('samples', []), 'message': R.describe(rule, group), 'occurrences': 1,
+            'explain': group.get('explain'),
             'triggered_at': now, 'last_match_at': now, 'notifications': [], 'response': None,
             'escalation_level': 1, 'escalation_ref': now, 'comments': [], 'history': [
                 {'status': 'open', 'by': 'alert-worker', 'at': now}],

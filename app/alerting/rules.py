@@ -17,13 +17,14 @@ from datetime import datetime, timezone
 
 from app.kibana import RUNTIME_FIELDS
 
-RULE_TYPES = ('threshold', 'cardinality', 'pattern', 'silence')
+RULE_TYPES = ('threshold', 'cardinality', 'pattern', 'silence', 'anomaly')
 WINDOWS = {'5m': 5, '15m': 15, '1h': 60, '24h': 1440}
 SEVERITIES = ('low', 'medium', 'high', 'critical')
 SEVERITY_LABELS = {'low': 'Faible', 'medium': 'Moyenne', 'high': 'Haute', 'critical': 'Critique'}
 GROUP_FIELDS = ('', 'source.ip', 'user.name', 'service.name')
 DISTINCT_FIELDS = ('user.name', 'source.ip', 'service.name')
-TYPE_LABELS = {'threshold': 'Seuil', 'cardinality': 'Valeurs distinctes', 'pattern': 'Motif (regex)', 'silence': 'Absence de logs'}
+TYPE_LABELS = {'threshold': 'Seuil', 'cardinality': 'Valeurs distinctes', 'pattern': 'Motif (regex)', 'silence': 'Absence de logs',
+               'anomaly': 'Anomalie (Isolation Forest)'}
 MAX_GROUPS = 50
 PATTERN_SCAN = 500
 _ID_RE = re.compile(r'^[a-z0-9][a-z0-9-]{2,48}$')
@@ -96,6 +97,10 @@ def validate(data, existing_id=None):
         pattern = ''
     if rtype == 'silence':
         group_by = ''
+    if rtype == 'anomaly':                     # (IP, 5 min) ; « threshold » = part des fenêtres jugées anormales, en ‰
+        group_by, window = 'source.ip', '5m'
+        if not 1 <= threshold <= 100:
+            errors.append('Anomalie : « threshold » est la sensibilité en ‰ (1 à 100, 10 = 1 % des fenêtres).')
     outside = data.get('outside_hours') or None
     if outside is not None:
         if (not isinstance(outside, (list, tuple)) or len(outside) != 2
@@ -152,6 +157,11 @@ DEFAULT_RULES = [
      'description': 'Exemple du sujet (> 100 erreurs/heure), par service.',
      'query': 'log.level:(ERROR OR CRITICAL)', 'window': '1h', 'group_by': 'service.name', 'threshold': 100,
      'severity': 'medium', 'cooldown_minutes': 60, 'actions': {'email': True, 'webhook': False, 'block_ip': False}},
+    {'id': 'ml-anomaly-ssh', 'name': 'Comportement SSH anormal (Isolation Forest)', 'type': 'anomaly',
+     'description': 'Apprend le comportement habituel par IP sur 7 jours et signale les fenêtres de 5 min qui s’en écartent : '
+                    'attaques lentes et sondages que les seuils ne voient pas. À examiner : pas de blocage automatique.',
+     'query': 'service.name:openssh', 'window': '5m', 'group_by': 'source.ip', 'threshold': 10, 'severity': 'medium',
+     'cooldown_minutes': 60, 'actions': {'email': True, 'webhook': False, 'block_ip': False}},
     {'id': 'auth-silence', 'name': 'Silence : aucun log d’authentification depuis 1 h', 'type': 'silence',
      'description': 'Collecte interrompue ? Désactivée par défaut : le laboratoire n’a pas de flux continu.',
      'query': 'event.category:authentication', 'window': '1h', 'threshold': 1, 'severity': 'medium',
@@ -327,4 +337,7 @@ def describe(rule, group):
         return f"{group['value']} {rule['distinct_field']} distincts en {win}{where}, {group['count']} événement(s)."
     if rule['type'] == 'pattern':
         return f"{group['count']} message(s) correspondant au motif en {win}{where}."
+    if rule['type'] == 'anomaly':
+        why = ', '.join(f"{e['label']} ({e['value']:g})" for e in group.get('explain', [])) or 'profil inhabituel'
+        return f"Comportement inhabituel{where}, score {group['value']} : {why}. Appris sur {group.get('training_windows', '?')} fenêtres normales."
     return f"{group['count']} événement(s) en {win}{where} (seuil : {rule['threshold']})."

@@ -181,7 +181,7 @@ services:
     # S4 — separate process that evaluates the alert rules every ALERT_INTERVAL_SECONDS (same image as the webapp).
     build: {context: ., dockerfile: app/Dockerfile}
     command: ["python", "-m", "app.alerting.worker"]
-    mem_limit: 160m
+    mem_limit: 384m
     environment:
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017/}

@@ -113,7 +113,7 @@ def s4app(app, cfg, stores):
 def test_default_rules_cover_scenario_c_and_are_valid():
     ids = {r['id'] for r in R.DEFAULT_RULES}
     assert {'brute-force-ip', 'credential-stuffing', 'unauthorized-country', 'off-hours-login', 'privilege-escalation',
-            'sql-injection', 'error-spike', 'auth-silence'} == ids
+            'sql-injection', 'error-spike', 'auth-silence', 'ml-anomaly-ssh'} == ids
     assert {R.validate(r)['type'] for r in R.DEFAULT_RULES} == set(R.RULE_TYPES)       # all 4 condition types used
     bf = R.validate(next(r for r in R.DEFAULT_RULES if r['id'] == 'brute-force-ip'))
     assert (bf['threshold'], bf['window'], bf['group_by'], bf['actions']['block_ip']) == (5, '5m', 'source.ip', True)
