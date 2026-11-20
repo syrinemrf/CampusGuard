@@ -196,3 +196,13 @@ code{color:var(--cyan)}
 .synth-figs.lat{margin-top:10px}
 @media(max-width:1200px){.chain{grid-template-columns:repeat(4,1fr)}.hop::after{display:none}}
 @media(max-width:700px){.chain{grid-template-columns:1fr 1fr}}
+
+/* ---------- incidents (S5) : fil, veille, escalade ---------- */
+.thread{margin-top:6px}.thread summary{cursor:pointer;font-size:12.5px;color:var(--cyan);font-weight:600}
+.tl{list-style:none;margin:8px 0;padding:0 0 0 12px;border-left:2px solid var(--bd);font-size:12.5px}
+.tl li{padding:3px 0;color:var(--mut)}.tl li b{color:var(--ink)}.tl time{font-family:"Cascadia Code",ui-monospace,monospace;font-size:11.5px}
+.tl li.cm{color:var(--ink)}.tl li.cm::before{content:"💬 "}
+.comment-form{display:flex;gap:6px;margin-top:4px}.comment-form .in{flex:1}
+.menu{display:inline-block;position:relative}.menu summary{list-style:none;cursor:pointer}.menu summary::-webkit-details-marker{display:none}
+.menu[open]>div{position:absolute;z-index:5;right:0;top:110%;display:flex;gap:4px;padding:6px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;box-shadow:var(--sh)}
+.pl.esc{font-size:11px}

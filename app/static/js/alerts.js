@@ -20,6 +20,21 @@
     done(await post('/api/alerts/' + b.dataset.ack + '/acknowledge'), 'Alerte prise en compte.');
   }));
 
+  document.querySelectorAll('[data-snooze]').forEach((b) => b.addEventListener('click', async () => {
+    done(await post('/api/alerts/' + b.dataset.snooze + '/snooze', { minutes: Number(b.dataset.minutes) }),
+      'Alerte mise en veille : elle reviendra seule.');
+  }));
+  document.querySelectorAll('[data-comment]').forEach((f) => f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const res = await post('/api/alerts/' + f.dataset.comment + '/comments', { text: f.elements.text.value.trim() });
+    try { if (res.ok) sessionStorage.setItem('sentinel-open-thread', f.dataset.comment); } catch (err) { /* ignoré */ }
+    done(res, 'Commentaire ajouté.');
+  }));
+  try {
+    const open = sessionStorage.getItem('sentinel-open-thread');
+    if (open) { const f = document.querySelector('[data-comment="' + open + '"]'); if (f) f.closest('details').open = true; sessionStorage.removeItem('sentinel-open-thread'); }
+  } catch (e) { /* stockage indisponible */ }
+
   const dlg = document.getElementById('resolve-dialog');
   let target = null;
   document.querySelectorAll('[data-resolve]').forEach((b) => b.addEventListener('click', () => {

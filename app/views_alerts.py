@@ -8,7 +8,7 @@ from flask_login import current_user
 
 from app.alerting import rules as R
 from app.alerting.blocklist import BlockError
-from app.alerting.engine import AlertEngine, AlertError
+from app.alerting.engine import SNOOZE_MINUTES, AlertEngine, AlertError
 from app.alerting.worker import Worker
 from app.security import ROLE_ADMIN, ROLE_ANALYST, error_response, roles_required
 from app.services.users import record_audit
@@ -48,7 +48,9 @@ def alerts_page():
                            history=engine.list('resolved', limit=30), blocked=engine.blocklist.active(),
                            block_history=engine.blocklist.history(10), heartbeat=engine.heartbeat(),
                            can_act=current_user.role in (ROLE_ADMIN, ROLE_ANALYST), is_admin=current_user.role == ROLE_ADMIN,
-                           severities=R.SEVERITY_LABELS, block_ttl=current_app.extensions['sentinel_config'].block_ttl_minutes)
+                           severities=R.SEVERITY_LABELS, snooze_choices=SNOOZE_MINUTES,
+                           esc={'l2': current_app.extensions['sentinel_config'].escalate_l2_minutes, 'l3': current_app.extensions['sentinel_config'].escalate_l3_minutes},
+                           block_ttl=current_app.extensions['sentinel_config'].block_ttl_minutes)
 
 
 @bp.get('/alerts/rules')
@@ -109,10 +111,14 @@ def get_alert(alert_id):
 @bp.post('/api/alerts/<alert_id>/<action>')
 @roles_required(ROLE_ADMIN, ROLE_ANALYST)
 def alert_action(alert_id, action):
+    body = request.get_json(silent=True) or {}
+    if action == 'snooze':
+        return jsonify(_engine().snooze(alert_id, current_user.username, body.get('minutes'), body.get('note', '')))
+    if action == 'comments':
+        return jsonify(_engine().comment(alert_id, current_user.username, body.get('text', ''))), 201
     if action not in ('acknowledge', 'resolve'):
         return error_response(404, 'not_found', 'Action inconnue.')
-    note = (request.get_json(silent=True) or {}).get('note', '')
-    return jsonify(_engine().transition(alert_id, action, current_user.username, note))
+    return jsonify(_engine().transition(alert_id, action, current_user.username, body.get('note', '')))
 
 
 @bp.post('/api/alerts/run')

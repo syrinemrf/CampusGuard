@@ -3,7 +3,16 @@
 Life cycle of an alert (MongoDB ``alerts``, mirrored to Elasticsearch ``sentinel-alerts-YYYY.MM`` for Kibana):
 
     open ──acknowledge──▶ acknowledged ──resolve──▶ resolved
-      └────────────────────────resolve────────────────▲
+      │  └───────────────────resolve────────────────▲
+      └─snooze─▶ snoozed ──(fin de la veille : retour à l'état précédent)
+
+- **Escalade (S5)** : une alerte restée « ouverte » (personne ne l'a prise en compte) monte au niveau 2 après
+  ESCALATE_L2_MINUTES (15 min) puis au niveau 3 après ESCALATE_L3_MINUTES (1 h). À chaque niveau la gravité monte
+  d'un cran et un e-mail part vers les destinataires du niveau (ALERT_EMAIL_TO_L2, ALERT_EMAIL_TO_L3). Prendre
+  l'alerte en compte arrête l'escalade. Une alerte en veille n'escalade pas ; à son réveil le délai repart de zéro.
+- **Mise en veille (snooze)** : l'analyste suspend une alerte 15 min, 1 h, 4 h ou 24 h (attente d'un retour, fenêtre
+  de maintenance). Elle reste dédupliquée (pas de nouvelle alerte pendant la veille) et revient seule à son état.
+- **Commentaires** : fil de discussion horodaté sur chaque incident (investigation, décisions).
 
 - **Silencing / deduplication**: while an alert with the same fingerprint (rule + group, e.g. rule + IP) is open
   or acknowledged, a new match only updates it (count, last_seen, occurrences): no new alert, no new notification.
@@ -26,8 +35,10 @@ from app.services.users import record_audit
 from app.stores import ElasticError
 
 log = logging.getLogger('sentinel.alerting')
-ACTIVE = ('open', 'acknowledged')
-STATUS_LABELS = {'open': 'Ouverte', 'acknowledged': 'Prise en compte', 'resolved': 'Résolue'}
+ACTIVE = ('open', 'acknowledged', 'snoozed')
+STATUS_LABELS = {'open': 'Ouverte', 'acknowledged': 'Prise en compte', 'snoozed': 'En veille', 'resolved': 'Résolue'}
+SNOOZE_MINUTES = (15, 60, 240, 1440)
+ESCALATION_LABELS = {1: 'N1 · analyste SOC', 2: 'N2 · responsable SOC', 3: 'N3 · RSSI'}
 COOLDOWN_PREFIX = 'sentinel:alerting:cooldown:'
 HEARTBEAT_KEY = 'sentinel:alerting:heartbeat'
 LOCK_KEY = 'sentinel:alerting:lock'
@@ -88,6 +99,8 @@ class AlertEngine:
                 outcome = self.raise_or_update(rule, group)
                 summary[outcome] += 1
             self.rules.record_run(rule['_id'], 'ok', matches=len(groups))
+        summary['woken'] = self.wake_snoozed()
+        summary['escalated'] = self.escalate()
         summary['duration_ms'] = int((self.now() - started).total_seconds() * 1000)
         summary['at'] = iso(self.now())
         return summary
@@ -110,7 +123,8 @@ class AlertEngine:
             'group_field': rule.get('group_by') or None, 'group': group['key'], 'count': group['count'],
             'value': group.get('value'), 'first_seen': group.get('first'), 'last_seen': group.get('last'),
             'samples': group.get('samples', []), 'message': R.describe(rule, group), 'occurrences': 1,
-            'triggered_at': now, 'last_match_at': now, 'notifications': [], 'response': None, 'history': [
+            'triggered_at': now, 'last_match_at': now, 'notifications': [], 'response': None,
+            'escalation_level': 1, 'escalation_ref': now, 'comments': [], 'history': [
                 {'status': 'open', 'by': 'alert-worker', 'at': now}],
         }
         if rule['cooldown_minutes']:
@@ -182,7 +196,7 @@ class AlertEngine:
         target = {'acknowledge': 'acknowledged', 'resolve': 'resolved'}.get(action)
         if not target:
             raise AlertError('Action inconnue : acknowledge ou resolve.')
-        allowed = {'acknowledged': ('open',), 'resolved': ('open', 'acknowledged')}[target]
+        allowed = {'acknowledged': ('open', 'snoozed'), 'resolved': ('open', 'acknowledged', 'snoozed')}[target]
         if alert['status'] not in allowed:
             raise AlertError(f"Transition impossible depuis l’état « {STATUS_LABELS[alert['status']]} ».", 409)
         now = self.now()
@@ -199,11 +213,113 @@ class AlertEngine:
         self._mirror(alert)
         return self.public(self.db.alerts.find_one({'_id': alert_id}))
 
+    # ------------------------------------------------------------ S5 : veille, escalade, commentaires
+    def _get(self, alert_id):
+        alert = self.db.alerts.find_one({'_id': alert_id})
+        if not alert:
+            raise AlertError('Alerte introuvable.', 404)
+        return alert
+
+    @staticmethod
+    def _aware(value):
+        return value if value is None or value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    def snooze(self, alert_id, user, minutes, note=''):
+        alert = self._get(alert_id)
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError):
+            minutes = 0
+        if minutes not in SNOOZE_MINUTES:
+            raise AlertError('Durée de mise en veille : 15, 60, 240 ou 1440 minutes.')
+        if alert['status'] not in ('open', 'acknowledged'):
+            raise AlertError(f"Impossible de mettre en veille une alerte « {STATUS_LABELS[alert['status']]} ».", 409)
+        now = self.now()
+        until = now + timedelta(minutes=minutes)
+        self.db.alerts.update_one({'_id': alert_id}, {
+            '$set': {'status': 'snoozed', 'snoozed_until': until, 'snoozed_by': user, 'status_before_snooze': alert['status'],
+                     'occurrences_at_snooze': alert.get('occurrences', 1)},
+            '$push': {'history': {'status': 'snoozed', 'by': user, 'at': now, 'note': (note or f'veille {minutes} min')[:500]}}})
+        record_audit(self.db, user, 'alert_snoozed', target=alert_id, reason=f'{minutes} min')
+        return self.public(self._get(alert_id))
+
+    def wake_snoozed(self):
+        """Fin de veille : l'alerte retrouve son état, le délai d'escalade repart, l'écran temps réel est prévenu."""
+        now, woken = self.now(), 0
+        for alert in self.db.alerts.find({'status': 'snoozed', 'snoozed_until': {'$lte': now}}):
+            back = alert.get('status_before_snooze') or 'open'
+            new = alert.get('occurrences', 1) - alert.get('occurrences_at_snooze', alert.get('occurrences', 1))
+            note = f'fin de veille ; {new} nouvelle(s) occurrence(s) pendant la veille' if new else 'fin de veille'
+            self.db.alerts.update_one({'_id': alert['_id']}, {
+                '$set': {'status': back, 'escalation_ref': now}, '$unset': {'snoozed_until': ''},
+                '$push': {'history': {'status': back, 'by': 'alert-worker', 'at': now, 'note': note}}})
+            alert.update(status=back)
+            self._mirror(alert)
+            publish_alert(self.redis, {**self.public(self._get(alert['_id'])), 'event': 'woken'})
+            woken += 1
+        return woken
+
+    def escalate(self):
+        """Alertes ouvertes sans prise en compte : niveau 2 après 15 min, niveau 3 après 1 h (gravité + destinataires)."""
+        now, done = self.now(), 0
+        steps = ((3, self.cfg.escalate_l3_minutes, self.cfg.alert_email_to_l3), (2, self.cfg.escalate_l2_minutes, self.cfg.alert_email_to_l2))
+        for alert in self.db.alerts.find({'status': 'open'}):
+            level = alert.get('escalation_level', 1)
+            ref = self._aware(alert.get('escalation_ref') or alert['triggered_at'])
+            waited = (now - ref).total_seconds() / 60
+            target = next((lvl for lvl, minutes, _ in steps if minutes > 0 and waited >= minutes), 1)
+            if target <= level:
+                continue
+            recipients = next(to for lvl, _, to in steps if lvl == target)
+            idx = R.SEVERITIES.index(alert['severity'])
+            severity = R.SEVERITIES[min(idx + target - level, len(R.SEVERITIES) - 1)]
+            entry = {'level': target, 'at': now, 'from_severity': alert['severity'], 'severity': severity,
+                     'to': recipients, 'after_minutes': int(waited)}
+            self.db.alerts.update_one({'_id': alert['_id']}, {
+                '$set': {'escalation_level': target, 'severity': severity},
+                '$push': {'escalations': entry, 'history': {
+                    'status': 'escalated', 'by': 'alert-worker', 'at': now,
+                    'note': f"escalade {ESCALATION_LABELS[target]} après {int(waited)} min sans prise en compte"}}})
+            fresh = self._get(alert['_id'])
+            public = self.public(fresh)
+            notes = []
+            rule = self.rules.get(alert['rule_id']) or {}
+            if recipients and (rule.get('actions') or {}).get('email', True):
+                notes.append(self.notifier.email(public, None, to=recipients, escalation=ESCALATION_LABELS[target]))
+            if (rule.get('actions') or {}).get('webhook'):
+                notes.append(self.notifier.webhook(public))
+            for n in notes:
+                n['escalation'] = target
+            if notes:
+                self.db.alerts.update_one({'_id': alert['_id']}, {'$push': {'notifications': {'$each': notes}}})
+            self._mirror(fresh)
+            publish_alert(self.redis, {**public, 'event': 'escalated'})
+            record_audit(self.db, 'alert-worker', 'alert_escalated', target=alert['_id'], reason=f'niveau {target}',
+                         details={'severity': severity, 'to': recipients})
+            done += 1
+        return done
+
+    def comment(self, alert_id, user, text):
+        text = (text or '').strip()
+        if not text:
+            raise AlertError('Le commentaire est vide.')
+        if len(text) > 1000:
+            raise AlertError('Commentaire : 1 000 caractères maximum.')
+        self._get(alert_id)
+        entry = {'id': uuid.uuid4().hex[:12], 'by': user, 'at': self.now(), 'text': text}
+        self.db.alerts.update_one({'_id': alert_id}, {'$push': {'comments': entry}})
+        record_audit(self.db, user, 'alert_commented', target=alert_id)
+        return self.public(self._get(alert_id))
+
     # ------------------------------------------------------------ reading
     def public(self, alert):
-        out = {k: iso(v) for k, v in alert.items() if k not in ('_id', 'history')}
+        out = {k: iso(v) for k, v in alert.items() if k not in ('_id', 'history', 'comments', 'escalations')}
         out['_id'] = out['id'] = alert['_id']
         out['history'] = [{**h, 'at': iso(h.get('at'))} for h in alert.get('history', [])]
+        out['comments'] = [{**c, 'at': iso(c.get('at'))} for c in alert.get('comments', [])]
+        out['escalations'] = [{**e, 'at': iso(e.get('at'))} for e in alert.get('escalations', [])]
+        out['escalation_level'] = alert.get('escalation_level', 1)
+        out['escalation_label'] = ESCALATION_LABELS.get(out['escalation_level'])
         out['severity_label'] = R.SEVERITY_LABELS.get(alert['severity'], alert['severity'])
         out['status_label'] = STATUS_LABELS.get(alert['status'], alert['status'])
         out['search_url'] = search_link(self.cfg, out).replace(self.cfg.app_public_url, '')

@@ -110,12 +110,13 @@ def webhook_payload(cfg, alert, fmt=None, template=None):
             'search': ctx['search_url'], 'response': alert.get('response')}
 
 
-def email_message(cfg, alert, chart_png=None):
+def email_message(cfg, alert, chart_png=None, to=None, escalation=None):
     ctx = _context(cfg, alert)
     msg = EmailMessage()
-    msg['Subject'] = f"[Sentinel][{ctx['severity']}] {alert['rule_name']} — {alert['group']}"
+    prefix = f'[ESCALADE {escalation.split(" ")[0]}]' if escalation else ''
+    msg['Subject'] = f"{prefix}[Sentinel][{ctx['severity']}] {alert['rule_name']} — {alert['group']}"
     msg['From'] = cfg.smtp_from
-    msg['To'] = cfg.alert_email_to
+    msg['To'] = to or cfg.alert_email_to
     msg.set_content(f"{alert['rule_name']}\n{alert['message']}\n\nAlerte : {ctx['alert_url']}\nLogs : {ctx['search_url']}\n")
     msg.add_alternative(_TEMPLATES.get_template('alert.html').render(**ctx, has_chart=bool(chart_png)), subtype='html')
     if chart_png:
@@ -146,11 +147,11 @@ class Notifier:
         return {'channel': channel, 'status': 'failed', 'attempts': attempts, 'error': error,
                 'at': datetime.now(timezone.utc).isoformat()}
 
-    def email(self, alert, chart_png=None):
+    def email(self, alert, chart_png=None, to=None, escalation=None):
         if not self.cfg.smtp_host:
             return {'channel': 'email', 'status': 'skipped', 'attempts': 0, 'error': 'SMTP_HOST non configuré',
                     'at': datetime.now(timezone.utc).isoformat()}
-        msg = email_message(self.cfg, alert, chart_png)
+        msg = email_message(self.cfg, alert, chart_png, to=to, escalation=escalation)
 
         def send():
             with self.smtp_factory() as smtp:

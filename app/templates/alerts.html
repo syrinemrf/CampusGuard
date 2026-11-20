@@ -29,18 +29,26 @@
 
 <section class="cd" id="active">
   <h2>Alertes actives</h2>
-  <p class="sub">Ouvertes ou prises en compte. Une même attaque (règle + IP/compte) reste <b>une seule</b> alerte tant qu’elle n’est pas résolue : seules les occurrences augmentent (pas de nouvelle notification).</p>
+  <p class="sub">Ouvertes ou prises en compte. Une même attaque (règle + IP/compte) reste <b>une seule</b> alerte tant qu’elle n’est pas résolue : seules les occurrences augmentent (pas de nouvelle notification).
+    Sans prise en compte, une alerte est <b>escaladée</b> : niveau 2 (responsable SOC) après {{ esc.l2 }} min, niveau 3 (RSSI) après {{ esc.l3 }} min, avec une gravité relevée d’un cran à chaque niveau.</p>
   {% if active %}<div class="tw"><table class="alerts-table"><thead><tr><th>Gravité</th><th>Règle</th><th>Concerne</th><th>Événements</th><th>Période (UTC)</th><th>Notifications / réponse</th><th>État et actions</th></tr></thead><tbody>
   {% for a in active %}<tr id="alert-{{ a.id }}">
     <td><span class="pl {{ SEV[a.severity] }}">{{ a.severity_label }}</span></td>
-    <td class="msg"><b>{{ a.rule_name }}</b><br><small class="mu">{{ a.message }}</small></td>
+    <td class="msg"><b>{{ a.rule_name }}</b>{% if a.escalation_level > 1 %} <span class="pl cr esc" title="{% for e in a.escalations %}{{ age(e.at) }} : {{ e.to }} ; {% endfor %}">escaladée {{ a.escalation_label }}</span>{% endif %}<br><small class="mu">{{ a.message }}</small>
+      <details class="thread"><summary>Fil de l’incident{% if a.comments %} · {{ a.comments|length }} commentaire(s){% endif %}</summary>
+        <ol class="tl">{% for h in a.history %}<li><time>{{ age(h.at) }}</time> <b>{{ h.by }}</b> — {{ {'open': 'ouverte', 'acknowledged': 'prise en compte', 'snoozed': 'mise en veille', 'resolved': 'résolue', 'escalated': 'escalade'}.get(h.status, h.status) }}{% if h.note %} : {{ h.note }}{% endif %}</li>{% endfor %}
+          {% for c in a.comments %}<li class="cm"><time>{{ age(c.at) }}</time> <b>{{ c.by }}</b> : {{ c.text }}</li>{% endfor %}</ol>
+        {% if can_act %}<form class="comment-form fl" data-comment="{{ a.id }}"><label class="visually-hidden" for="c-{{ a.id }}">Commentaire</label><input class="in w" id="c-{{ a.id }}" name="text" maxlength="1000" placeholder="Ajouter un commentaire (investigation, décision…)" required><button class="btn s" type="submit">Publier</button></form>{% endif %}
+      </details></td>
     <td class="mono">{% if a.group_field %}<a href="{{ a.search_url }}">{{ a.group }}</a>{% else %}—{% endif %}</td>
     <td>{{ a.count }}{% if a.occurrences > 1 %}<br><small class="mu">vu {{ a.occurrences }} fois</small>{% endif %}</td>
     <td class="when">{{ age(a.first_seen) }}<br><small class="mu">→ {{ age(a.last_seen) }}</small></td>
     <td>{% for n in a.notifications %}<span class="pl {{ 'ok' if n.status == 'sent' else ('mu' if n.status == 'skipped' else 'cr') }}" title="{{ n.error or '' }}">{{ n.channel }} : {{ {'sent': 'envoyé', 'failed': 'échec', 'skipped': 'non configuré'}[n.status] }}{% if n.attempts > 1 %} ({{ n.attempts }} essais){% endif %}</span> {% endfor %}
       {% if a.response and a.response.until %}<br><span class="pl cr">IP bloquée → {{ age(a.response.until) }}</span>{% elif a.response and a.response.error %}<br><span class="pl mu" title="{{ a.response.error }}">blocage refusé</span>{% endif %}</td>
-    <td><span class="pl {{ 'ac' if a.status == 'acknowledged' else 'me2' }}">{{ a.status_label }}</span>{% if a.acknowledged_by %}<br><small class="mu">par {{ a.acknowledged_by }}</small>{% endif %}
-      <div class="row-actions">{% if can_act %}{% if a.status == 'open' %}<button class="btn s" type="button" data-ack="{{ a.id }}">Prendre en compte</button> {% endif %}<button class="btn s p" type="button" data-resolve="{{ a.id }}">Résoudre</button>{% endif %}</div></td>
+    <td><span class="pl {{ {'acknowledged': 'ac', 'snoozed': 'mu'}.get(a.status, 'me2') }}">{{ a.status_label }}</span>{% if a.status == 'snoozed' %}<br><small class="mu">jusqu’à {{ age(a.snoozed_until)[11:] }} UTC</small>{% elif a.acknowledged_by %}<br><small class="mu">par {{ a.acknowledged_by }}</small>{% endif %}
+      <div class="row-actions">{% if can_act %}{% if a.status in ('open', 'snoozed') %}<button class="btn s" type="button" data-ack="{{ a.id }}">Prendre en compte</button> {% endif %}
+        {% if a.status != 'snoozed' %}<details class="menu"><summary class="btn s">Mettre en veille</summary><div>{% for m in snooze_choices %}<button class="btn s" type="button" data-snooze="{{ a.id }}" data-minutes="{{ m }}">{{ m // 60 ~ ' h' if m >= 60 else m ~ ' min' }}</button>{% endfor %}</div></details> {% endif %}
+        <button class="btn s p" type="button" data-resolve="{{ a.id }}">Résoudre</button>{% endif %}</div></td>
   </tr>{% endfor %}
   </tbody></table></div>
   {% else %}<p class="sub">Aucune alerte active. Le worker évalue les règles toutes les 30 s.</p>{% endif %}
