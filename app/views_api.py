@@ -203,6 +203,25 @@ def stream_status():
     return jsonify(StreamStatus(_stores(), _cfg(), http=current_app.extensions.get('sentinel_http')).build())
 
 
+@bp.get('/reports/monthly')
+@roles_required()
+def monthly_report():
+    """S5 : rapport mensuel de conformité sécurité en PDF (?month=AAAA-MM, mois courant par défaut)."""
+    from datetime import datetime, timezone
+    from app.services.report import MonthlyReport, ReportError, render_pdf
+    month = request.args.get('month') or datetime.now(timezone.utc).strftime('%Y-%m')
+    try:
+        data = MonthlyReport(_stores(), _cfg()).collect(month)
+    except ReportError as exc:
+        return error_response(400, 'invalid_month', str(exc))
+    except ElasticError as exc:
+        return error_response(503, 'elasticsearch_unavailable', f'Elasticsearch indisponible : {exc}')
+    pdf = render_pdf(data, author=current_user.username)
+    record_audit(_stores().db, current_user.username, 'report_monthly', target=month, ip=request.remote_addr)
+    return Response(pdf, mimetype='application/pdf', headers={
+        'Content-Disposition': f'attachment; filename="sentinel-conformite-{month}.pdf"'})
+
+
 # ------------------------------------------------------------------ OpenAPI + stable /api/v1 aliases
 
 @bp.get('/openapi.json')

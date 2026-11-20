@@ -27,6 +27,7 @@
   <div class="grp">Détection</div>
   <a class="nv {% if page == 'alerts' %}on{% endif %}" href="{{ url_for('alerts.alerts_page') }}">Alertes &amp; incidents <span class="badge hidden" id="nav-alert-badge" aria-label="alertes ouvertes"></span></a>
   <a class="nv {% if page == 'rules' %}on{% endif %}" href="{{ url_for('alerts.rules_page') }}">Règles de détection</a>
+  <a class="nv {% if page == 'reports' %}on{% endif %}" href="{{ url_for('web.reports_page') }}">Rapport de conformité</a>
   <button class="nv linkbtn hidden" type="button" id="notify-toggle">Activer les notifications</button>
   <div class="grp">Temps réel</div>
   <a class="nv {% if page == 'live' %}on{% endif %}" href="{{ url_for('web.live_page') }}"><i class="live-dot" aria-hidden="true"></i>Flux en direct</a>

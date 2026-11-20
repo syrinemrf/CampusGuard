@@ -114,3 +114,24 @@ def _es_ok(stores):
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+@bp.get('/reports')
+@roles_required()
+def reports_page():
+    """Rapport mensuel de conformité : aperçu des contrôles du mois choisi, puis téléchargement du PDF."""
+    from datetime import datetime, timezone
+    from app.services.report import MonthlyReport, ReportError
+    now = datetime.now(timezone.utc)
+    months = []
+    y, m = now.year, now.month
+    for _ in range(12):
+        months.append(f'{y}-{m:02d}')
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+    month = request.args.get('month') if request.args.get('month') in months else months[0]
+    data, error = None, None
+    try:
+        data = MonthlyReport(current_app.extensions['sentinel_stores'], current_app.extensions['sentinel_config']).collect(month)
+    except (ReportError, ElasticError) as exc:
+        error = str(exc)
+    return render_template('reports.html', page='reports', months=months, month=month, d=data, error=error)

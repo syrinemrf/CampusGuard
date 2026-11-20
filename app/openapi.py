@@ -93,6 +93,9 @@ def build_spec():
             '/api/overview': {'get': {'tags': ['dashboard'], 'summary': 'Centre de pilotage : KPI d’authentification comparés à la période précédente, IP prioritaires, santé (services, pipelines Logstash, fraîcheur, rejets)',
                 'parameters': [{'name': 'period', 'in': 'query', 'schema': {'type': 'string', 'enum': ['24h', '7d', '30d', '90d']}, 'description': 'Par défaut : la période enregistrée de l’utilisateur.'}],
                 'responses': {'200': _ok('Données du centre de pilotage'), '401': _ERR}}},
+            '/api/reports/monthly': {'get': {'tags': ['dashboard'], 'summary': 'Rapport mensuel de conformité sécurité (PDF) : contrôles chiffrés, authentifications par jour, origine des attaques, alertes, escalades, blocages, audit',
+                'parameters': [{'name': 'month', 'in': 'query', 'schema': {'type': 'string', 'pattern': '^20\\d{2}-(0[1-9]|1[0-2])$', 'example': '2026-11'}, 'description': 'Par défaut : le mois en cours (chiffres partiels).'}],
+                'responses': {'200': {'description': 'Fichier PDF', 'content': {'application/pdf': {'schema': {'type': 'string', 'format': 'binary'}}}}, '400': _ERR, '401': _ERR, '503': _ERR}}},
             '/api/stream/status': {'get': {'tags': ['dashboard'], 'summary': 'Chaîne temps réel : état mesuré de Filebeat, Kafka, Logstash (pipeline stream-security), Elasticsearch, Redis Pub/Sub ; latence de bout en bout (médiane, p95) ; requêtes en cours, utilisateurs connectés. Le flux lui-même est poussé sur la WebSocket /ws/live (hors API REST).',
                 'responses': {'200': _ok('État de la chaîne'), '401': _ERR}}},
             '/api/dashboard/prefs': {
