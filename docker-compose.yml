@@ -2,6 +2,7 @@ name: campusguard
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.19.10}
+    restart: unless-stopped
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -34,6 +35,7 @@ services:
     networks: [sentinel]
   mongodb:
     image: mongo:${MONGO_VERSION:-7.0}
+    restart: unless-stopped
     mem_limit: 384m
     ports: ["127.0.0.1:27017:27017"]
     volumes: ["mongo-data:/data/db"]
@@ -46,6 +48,7 @@ services:
     networks: [sentinel]
   redis:
     image: redis:${REDIS_VERSION:-7.4}-alpine
+    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
     mem_limit: 192m
     ports: ["127.0.0.1:6379:6379"]
@@ -68,6 +71,7 @@ services:
     networks: [sentinel]
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.10}
+    restart: unless-stopped
     mem_limit: 768m
     environment:
       LS_JAVA_OPTS: "-Xms384m -Xmx384m"
@@ -93,6 +97,7 @@ services:
     networks: [sentinel]
   kibana:
     image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.19.10}
+    restart: unless-stopped
     mem_limit: 768m
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
@@ -128,6 +133,7 @@ services:
     networks: [sentinel]
   webapp:
     build: {context: ., dockerfile: app/Dockerfile}
+    restart: unless-stopped
     mem_limit: 320m
     environment:
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
@@ -221,6 +227,7 @@ services:
   mailpit:
     # S4 — local SMTP catcher for the alert e-mails (web UI http://localhost:8025). Nothing leaves the machine.
     image: axllent/mailpit:${MAILPIT_VERSION:-v1.21.0}
+    restart: unless-stopped
     mem_limit: 64m
     environment:
       MP_MAX_MESSAGES: 500
@@ -229,6 +236,7 @@ services:
   kafka:
     profiles: [stream]
     image: apache/kafka:${KAFKA_VERSION:-3.9.1}
+    restart: unless-stopped
     mem_limit: 1024m
     environment:
       KAFKA_NODE_ID: 1
@@ -270,6 +278,7 @@ services:
   filebeat:
     profiles: [stream]
     image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION:-8.19.10}
+    restart: unless-stopped
     mem_limit: 256m
     user: root
     command: ["filebeat", "-e", "-strict.perms=false"]

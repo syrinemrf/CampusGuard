@@ -172,3 +172,9 @@ def test_cli_set_password_replaces_a_lost_password_and_is_audited(app, users, st
     assert runner.invoke(args=['set-password', 'nobody'], input=f'{new}\n{new}\n').exit_code != 0
     too_short = 'x' * 5
     assert runner.invoke(args=['set-password', 'analyste'], input=f'{too_short}\n{too_short}\n').exit_code != 0
+
+
+def test_operator_injection_in_json_login_is_rejected_not_a_server_error(app, users):
+    """S6 security test: {"$ne": null} must never reach MongoDB nor crash the login."""
+    r = app.test_client().post('/api/auth/login', json={'username': {'$ne': None}, 'password': {'$ne': None}})
+    assert r.status_code == 401

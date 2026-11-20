@@ -442,3 +442,36 @@ flowchart LR
 - Le nombre de lignes du corpus OpenSSH (≈ 655 000 annoncées) est à confirmer sur le fichier téléchargé.
 - Les objets Kibana sont écrits au format « visualisation classique » (agrégations) pour sa stabilité ; leur import n'a pas encore été exécuté sur un Kibana réel (voir `verify_s3.py`).
 - Le schéma `sentinel_architecture_globale_v2.png` prévoit Kafka ; son rôle est repoussé volontairement (R1 mémoire).
+
+## 17. Temps réel et apprentissage automatique (S5–S6, 20 novembre 2026)
+
+```mermaid
+flowchart LR
+  R[replay_openssh.py<br/>journal sshd réel] -->|ajoute des lignes| F[datasets/stream/sshd.log]
+  F --> FB[Filebeat<br/>tail -f]
+  FB -->|topic logs.auth| K[(Kafka)]
+  K --> LS[Logstash<br/>stream-security]
+  R -. sans Kafka : TCP 5140 .-> LS
+  LS --> ES[(Elasticsearch<br/>logs-ssh-*)]
+  LS -->|après indexation| PS{{Redis Pub/Sub<br/>sentinel:live:logs}}
+  W[alert-worker<br/>règles + Isolation Forest] --> ES
+  W -->|alertes, escalades| PA{{sentinel:live:alerts}}
+  PS --> WS[Flask /ws/live]
+  PA --> WS
+  WS --> B[Navigateur<br/>Flux en direct]
+```
+
+- **Kafka sert de tampon** entre la collecte et le traitement : si Logstash s'arrête, les lignes attendent dans le topic
+  (scénario vérifié par `scripts/recovery_check.py --kafka`). Profil Docker `stream` pour ne pas consommer 1 Go de mémoire
+  quand le flux continu n'est pas démontré.
+- **Pourquoi Redis Pub/Sub entre Logstash et Flask** : Logstash pousse sans connaître les navigateurs ; chaque processus
+  Gunicorn s'abonne, si bien que plusieurs workers servent des WebSocket sans état partagé.
+- **Latence mesurée**, pas estimée : horodatage d'écriture de la ligne → réception par le serveur WebSocket (médiane et p95
+  affichées en direct, 1 000 dernières mesures dans Redis pour la page « Sources & chaîne »).
+- **Isolation Forest dans le worker** (`app/ml/online.py`) : Elasticsearch agrège 9 caractéristiques par (IP, 5 min) sur
+  7 jours (agrégation composite), le modèle apprend sur les fenêtres que les règles ne signalent pas, puis note les
+  10 dernières minutes. Alerte de gravité moyenne avec les causes probables, sans blocage : le choix vient de
+  l'expérience S6 (`docs/experiments/S6_EXPERIENCES.md`), où Isolation Forest trouve plus d'attaquants que les règles mais
+  se trompe plus souvent.
+- **Elastic ML** (anomaly detection jobs) n'est pas utilisé : il exige une licence Platinum ou un essai de 30 jours ;
+  Isolation Forest (scikit-learn) donne une détection comparable, explicable et sans licence.

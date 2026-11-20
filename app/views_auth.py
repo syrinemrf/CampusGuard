@@ -32,6 +32,8 @@ def _attempt(username, password):
     """Shared login logic. Returns (user | None, error_code | None, retry_after)."""
     stores, _cfg, users, throttle = _ctx()
     ip = request.remote_addr or 'unknown'
+    if not isinstance(username, (str, type(None))) or not isinstance(password, (str, type(None))):
+        username, password = '', ''          # {"$ne": null} & co. : jamais transmis à MongoDB (S6, test de sécurité)
     username = (username or '').strip().lower()[:64]
     wait = throttle.retry_after(ip, username)
     if wait:

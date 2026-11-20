@@ -2,7 +2,7 @@
 
 CampusGuard est un **mini-SIEM/SOAR explicable** conçu pour centraliser, normaliser et explorer des journaux de sécurité dans un environnement académique local. Le projet vise à aider un analyste SOC à rechercher des événements, comprendre une activité suspecte et, à terme, gérer des alertes et des réponses réversibles.
 
-Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure Docker, ingestion, authentification par rôles, upload CSV/JSON/TXT, recherche, export, API + Swagger, centre de pilotage et dashboard Kibana d’analyse) et le **module avancé G — alerting** avec une réponse **SOAR-lite** (S4 : règles, worker séparé, notifications e-mail/webhook, incidents, blocage d’IP local à durée limitée). Tout est validé sur la stack Docker réelle : `verify_core` 8/8, `verify_s2` 18/18, `verify_s3` 13/13 et `verify_s4` 21/21 (13 novembre 2026, preuves dans `docs/evidence/`). État détaillé et honnête : [`PROJECT_STATE.md`](PROJECT_STATE.md). Ce n’est pas une configuration de production.
+Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure Docker, ingestion, authentification par rôles, upload CSV/JSON/TXT, recherche, export, API + Swagger, centre de pilotage et dashboard Kibana d’analyse) le **module avancé G — alerting** avec une réponse **SOAR-lite** (S4 : règles, worker séparé, notifications e-mail/webhook, incidents, blocage d’IP local à durée limitée), le **module H — temps réel** (S5 : journal sshd réel rejoué, Filebeat → Kafka → Logstash, WebSocket, live tail, métriques et latence mesurées, escalade, mise en veille, rapport PDF mensuel de conformité) et les **expériences ML/NLP** (S6 : règles vs Isolation Forest, TF-IDF vs MiniLM, Isolation Forest intégré au worker ; tests de charge, de sécurité et de reprise). Tout est validé sur la stack Docker réelle : `verify_core` 8/8, `verify_s2` 18/18, `verify_s3` 13/13 et `verify_s4` 21/21 (13 novembre 2026, preuves dans `docs/evidence/`). État détaillé et honnête : [`PROJECT_STATE.md`](PROJECT_STATE.md). Ce n’est pas une configuration de production.
 
 ## Fonctionnalités disponibles
 
@@ -17,7 +17,9 @@ Le dépôt contient le **socle obligatoire complet** (S1 à S3 : infrastructure 
 - adaptateurs expérimentaux Redis Streams/Pub/Sub et Kafka ;
 - **S3** : deux tableaux de bord complémentaires — le **centre de pilotage** (accueil : KPI comparés à la période précédente, alertes à traiter, IP prioritaires, santé mesurée des services, pipelines Logstash, fraîcheur et rejets) et l’**analyse dans Kibana**, organisée en 3 tableaux de bord thématiques au format paysage (vue d’ensemble, menaces sur l’authentification, alertes : part des échecs, carte de chaleur heure × jour, comptes visés, pays, services attaqués, alertes par gravité et par règle) exporté en NDJSON dans `ingestion/kibana/`, ré-importable et intégré dans l’application ; fenêtre modale de détail, page 404, fil d’Ariane, version mobile ; préférences par utilisateur (MongoDB) ; documents d’[analyse fonctionnelle](docs/ANALYSE_FONCTIONNELLE.pdf) et d’[architecture technique](docs/ARCHITECTURE.pdf) ;
 - **S4** : 8 règles de détection du scénario C (force brute, credential stuffing, pays non autorisé, hors horaires, élévation de privilèges, injection SQL, pic d’erreurs, silence), éditeur avec **test avant activation**, worker d’alertes séparé, *silencing* et *cooldown*, notifications e-mail (Mailpit) et webhook (Slack/Discord/Teams/JSON) avec *retry*, prise en compte / résolution / MTTR, **blocage d’IP local** avec durée de vie et audit (détails dans la section « S4 ») ;
-- 263 tests automatisés (socle, S2, S3 : centre de pilotage, objets Kibana, interface ; S4 : règles, worker, notifications, blocage, API et droits).
+- **S5** : flux continu sur le **journal sshd réel** de Loghub (pseudonymisé en gardant le pays), Filebeat → Kafka → Logstash → Elasticsearch → Redis Pub/Sub → **WebSocket** ; page **Flux en direct** (tail -f filtrable, pause, tampon de 500 lignes, reconnexion automatique, logs/s, erreurs/min, latence médiane et p95, requêtes en cours, utilisateurs connectés) ; page **Sources & chaîne** (état mesuré de chaque maillon) ; **escalade** N2/N3, **mise en veille**, commentaires d’incident ; **rapport mensuel de conformité** en PDF ;
+- **S6** : expériences reproductibles ([résultats](docs/experiments/S6_EXPERIENCES.md)) et règle « Comportement SSH anormal » (Isolation Forest, causes probables, sans blocage) ; scripts de tests de charge (Locust, 100 utilisateurs), de sécurité et de reprise ;
+- 311 tests automatisés.
 
 ## Validation CORE du 31 octobre 2026
 
@@ -218,15 +220,33 @@ python -m compileall -q app bus simulator
 
 Les tests du générateur utilisent des répertoires temporaires et ne remplacent pas les échantillons suivis par Git.
 
-## Profil STREAM expérimental
+## S5 — Temps réel
 
-La syntaxe du profil STREAM est validée sans démarrer ses services :
-
-```bash
-docker compose --profile stream config -q
+```powershell
+docker compose up -d --build                         # stack principale (Logstash écoute aussi en TCP 5140)
+docker compose --profile stream up -d                # + Kafka (topic créé automatiquement) et Filebeat
+python scripts/replay_openssh.py --download          # rejoue le journal sshd réel (~4 h en 4 min)
+python scripts/replay_openssh.py --to tcp            # même chose sans Kafka
 ```
 
-Le service Filebeat attend un fichier `datasets/samples/stream-auth.jsonl`. Aucun producteur ou consommateur Kafka applicatif n’est encore relié au flux principal. Compte tenu des 89,0 % de RAM hôte mesurés avec CORE, **ne pas lancer Kafka pour l’instant**.
+- `http://127.0.0.1:8000/live` : flux en direct, métriques, alertes au moment où elles sont levées ;
+- `http://127.0.0.1:8000/sources` : état de chaque maillon (Filebeat, Kafka, Logstash, Elasticsearch, Redis) et latence ;
+- `http://127.0.0.1:8000/reports` : rapport mensuel de conformité, aperçu et PDF.
+
+Validation : `python scripts/verify_s5.py --password "<analyste>" --admin-password "<admin>" --evidence`.
+
+## S6 — Expériences et tests
+
+```powershell
+pip install -r requirements-ml.txt
+python experiments/run_s6.py                                     # résultats dans docs/experiments/
+python scripts/security_check.py --analyst-password "..." --auditor-password "..." --rate --evidence
+python scripts/recovery_check.py --password "..." --kafka --evidence
+pip install locust==2.37.10
+locust -f tests/perf/locustfile.py --host http://localhost:8000 --headless -u 100 -r 10 -t 3m --csv docs/evidence/load --html docs/evidence/load_report.html
+```
+
+Pour le test de charge, relancer la webapp avec `API_RATE_LIMIT_PER_MIN=0` (sinon on mesure le limiteur de débit).
 
 ## Données et sécurité
 
@@ -238,17 +258,18 @@ Un échantillon OpenSSH public peut être téléchargé, pseudonymisé et conver
 python scripts/prepare_openssh.py --download --limit 2000
 ```
 
+Pseudonymisation des IP : les deux premiers octets sont conservés (le pays et l’opérateur restent justes pour la GeoIP), les deux derniers sont remplacés par un hachage stable ; les comptes qui se sont réellement connectés sont renommés.
+
 Cette configuration est réservée à un **laboratoire local** : Elasticsearch fonctionne sans authentification et les ports de développement sont liés à `127.0.0.1`. Ils ne doivent pas être exposés sur Internet.
 
 ## Limites actuelles et suite du projet
 
-Le projet ne fournit pas encore :
+- trafic légitime simulé dans les expériences S6 (le journal Loghub ne contient presque que des attaques) ;
+- MiniLM évalué mais non intégré (aucun gain sur des logs sshd) ;
+- gestion des utilisateurs par la CLI uniquement ;
+- S7 : recette finale, installation sur une autre machine, rapport, slides et vidéo.
 
-- l’escalade et le *snooze* des alertes, le flux continu et le *live tail* WebSocket, le rapport PDF mensuel (S5) ;
-- le machine learning et le NLP (S6) ; la gestion des utilisateurs par l’interface ;
-- un pipeline Kafka opérationnel de bout en bout.
-
-Ces fonctions sont prévues dans les phases suivantes. L’état courant et les éléments non testés sont suivis dans [`PROJECT_STATE.md`](PROJECT_STATE.md).
+L’état courant et les éléments non testés sont suivis dans [`PROJECT_STATE.md`](PROJECT_STATE.md).
 
 ## Documentation
 
