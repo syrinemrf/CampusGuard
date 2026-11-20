@@ -8,6 +8,7 @@ from app.services.overview import PERIODS, OverviewService, fmt_age
 from app.services.prefs import WIDGET_LABELS, DashboardPrefs
 from app.services.search import SearchService
 from app.services.uploads import UploadService
+from app.stores import ElasticError
 
 bp = Blueprint('web', __name__)
 SERVICE_NAMES = {'elasticsearch': 'Elasticsearch', 'mongodb': 'MongoDB', 'redis': 'Redis', 'logstash': 'Logstash',
@@ -28,7 +29,13 @@ def home():
     overview = OverviewService(stores, cfg, http=current_app.extensions.get('sentinel_http')).build(period)
     search = SearchService(stores.db, stores.redis, stores.es, cfg)
     upload_service = UploadService(stores.db, stores.es, cfg)
-    return render_template('home.html', ov=overview, es_error=overview['es_error'], fmt_age=fmt_age,
+    stats = None
+    if overview['es_error'] is None:
+        try:
+            stats = search.stats(upload_service.count_imported())   # Module 3 of the statement: global figures + charts
+        except ElasticError:
+            stats = None
+    return render_template('home.html', ov=overview, stats=stats, es_error=overview['es_error'], fmt_age=fmt_age,
                            uploads=upload_service.list(current_user, limit=5),
                            history=search.history(current_user, 5), page='home',
                            widgets=prefs.get(current_user.username), widget_labels=WIDGET_LABELS,

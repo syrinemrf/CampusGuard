@@ -11,11 +11,9 @@ DASHBOARDS = {
     'alerts': ('sentinel-alerts-overview', 'Alertes'),
 }
 VISUALIZATION_IDS = {
-    # vue d'ensemble
-    'm_events': 'sentinel-vis-total-events', 'm_failures': 'sentinel-vis-metric-failures',
-    'm_fail_ips': 'sentinel-vis-metric-failing-ips', 'm_users': 'sentinel-vis-metric-targeted-users',
-    'm_alerts': 'sentinel-vis-metric-alerts', 'activity': 'sentinel-vis-activity-by-outcome',
-    'outcome': 'sentinel-vis-outcome-split', 'timeline': 'sentinel-vis-events-over-time',
+    # vue d'ensemble : uniquement des tendances (les chiffres du moment sont sur l'accueil de l'application)
+    'activity': 'sentinel-vis-activity-by-outcome', 'outcome': 'sentinel-vis-outcome-split',
+    'timeline': 'sentinel-vis-events-over-time', 'by_source': 'sentinel-vis-volume-by-source',
     'top_ips': 'sentinel-vis-top-failing-ips',
     # menaces
     'heatmap': 'sentinel-vis-failures-heatmap', 'failure_share': 'sentinel-vis-failure-share',

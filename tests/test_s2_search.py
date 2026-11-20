@@ -229,8 +229,14 @@ def test_stats_api_returns_dashboard_figures_and_uses_mongo_upload_count(analyst
     assert sent['errors']['filter']['terms']['log.level'] == ['ERROR', 'CRITICAL']
 
 
-def test_home_page_no_longer_duplicates_kibana_charts(analyst, stores):
-    """The home page is the « centre de pilotage »; trend charts live in Kibana only (no Chart.js here)."""
+def test_home_page_shows_the_global_figures_and_synthesis_charts_required_by_the_statement(analyst, stores):
+    """Module 3: total indexed, today, ERROR/CRITICAL, uploaded files, synthesis charts (Chart.js), no inline script."""
+    stores.es.response = {'hits': {'total': {'value': 42}}, 'aggregations': {
+        'today': {'doc_count': 7}, 'errors': {'doc_count': 3},
+        'levels': {'buckets': [{'key': 'INFO', 'doc_count': 39}]}, 'services': {'buckets': []},
+        'timeline': {'buckets': [{'key': 1, 'key_as_string': '2026-11-20T10:00:00.000Z', 'doc_count': 42}]}}}
     html = analyst.get('/').get_data(as_text=True)
-    assert 'Centre de pilotage' in html and 'chart-timeline' not in html and 'chart.umd.js' not in html
-    assert 'Analyse approfondie dans Kibana' in html
+    for label in ('Logs indexés', 'Aujourd’hui (UTC)', 'Erreurs (ERROR / CRITICAL)', 'Fichiers importés'):
+        assert label in html
+    assert 'chart.umd.js' in html and 'id="chart-timeline"' in html and 'id="chart-levels"' in html
+    assert '<script type="application/json" id="chart-data">' in html and '<script>' not in html

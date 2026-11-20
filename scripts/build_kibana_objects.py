@@ -138,11 +138,6 @@ def build():
     A = ALERTS_DATA_VIEW_ID
 
     # ---------------- vue d'ensemble : volumes et tendance
-    add(_metric('m_events', 'Événements', 'Nombre d’événements dans la période.', _count('Événements')))
-    add(_metric('m_failures', 'Échecs de connexion', 'Événements dont le résultat est un échec.', _count('Échecs'), query=FAILURE))
-    add(_metric('m_fail_ips', 'IP en échec', 'Adresses source distinctes ayant au moins un échec.', _cardinality('source.ip', 'IP en échec'), query=FAILURE))
-    add(_metric('m_users', 'Comptes visés', 'Comptes distincts ayant subi au moins un échec.', _cardinality('user.name', 'Comptes visés'), query=FAILURE))
-    add(_metric('m_alerts', 'Alertes levées', 'Alertes levées par le worker dans la période.', _count('Alertes'), data_view=A))
     add(_colors(_visualization(
         'activity', 'Activité par résultat', 'Connexions réussies et échouées dans le temps.', 'area',
         [_count(), _date_histogram(), _terms('3', 'event.outcome', 'group', 3, label='Résultat')],
@@ -152,6 +147,10 @@ def build():
         'timeline', 'Événements par niveau', 'Histogramme empilé par niveau de log (log.level).', 'histogram',
         [_count(), _date_histogram(), _terms('3', 'log.level', 'group', 5, label='Niveau')], _xy('histogram', legend='top')),
         LEVEL_COLORS))
+    add(_visualization(
+        'by_source', 'Volume par source de logs', 'Événements par service (SSH, pare-feu, application…) dans le temps.',
+        'area', [_count(), _date_histogram(), _terms('3', 'service.name', 'group', 6, label='Source')],
+        _xy('area', mode='stacked', y_title='Événements', legend='top')))
     add(_visualization(
         'top_ips', 'IP sources les plus en échec', 'Adresses (source.ip) avec le plus d’échecs.', 'table',
         [_count('Échecs'), _terms('2', 'source.ip', 'bucket', 8, label='IP source')], TABLE, query=FAILURE))
@@ -204,18 +203,17 @@ def build():
 
     # ---------------- 3 dashboards, grille de 48 colonnes, lisibles sur un écran paysage
     layouts = {
-        'overview': [('m_events', 0, 0, 10, 6), ('m_failures', 10, 0, 10, 6), ('m_fail_ips', 20, 0, 10, 6),
-                     ('m_users', 30, 0, 9, 6), ('m_alerts', 39, 0, 9, 6),
-                     ('activity', 0, 6, 32, 13), ('outcome', 32, 6, 16, 13),
-                     ('timeline', 0, 19, 32, 12), ('top_ips', 32, 19, 16, 12)],
+        'overview': [('activity', 0, 0, 32, 15), ('outcome', 32, 0, 16, 15),
+                     ('timeline', 0, 15, 24, 14), ('by_source', 24, 15, 24, 14)],
         'threats': [('heatmap', 0, 0, 30, 15), ('failure_share', 30, 0, 18, 15),
-                    ('top_users', 0, 15, 16, 13), ('countries', 16, 15, 16, 13), ('services', 32, 15, 16, 13)],
+                    ('top_ips', 0, 15, 12, 14), ('top_users', 12, 15, 12, 14), ('countries', 24, 15, 12, 14),
+                    ('services', 36, 15, 12, 14)],
         'alerts': [('a_total', 0, 0, 12, 6), ('a_critical', 12, 0, 12, 6), ('a_blocked', 24, 0, 12, 6), ('a_rules', 36, 0, 12, 6),
                    ('alerts_timeline', 0, 6, 32, 13), ('alerts_severity', 32, 6, 16, 13),
                    ('alerts_rules', 0, 19, 24, 12), ('alerts_targets', 24, 19, 24, 12)],
     }
     descriptions = {
-        'overview': 'Volumes, tendance succès / échecs, niveaux et IP les plus en échec.',
+        'overview': 'Tendances : activité succès / échecs, niveaux et volume par source dans le temps.',
         'threats': 'Quand, qui, d’où et sur quel service ont lieu les échecs de connexion.',
         'alerts': 'Alertes du worker : volume, gravité, règles et cibles.',
     }

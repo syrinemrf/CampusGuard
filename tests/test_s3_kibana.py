@@ -46,7 +46,7 @@ def test_ndjson_has_two_data_views_three_themed_dashboards_and_their_visualizati
     assert kinds.count('visualization') == len(kibana.VISUALIZATION_IDS)
     assert len({o['id'] for o in objs}) == len(objs)
     assert {o['id'] for o in objs if o['type'] == 'dashboard'} == {d for d, _ in kibana.DASHBOARDS.values()}
-    for vid in ('sentinel-vis-total-events', 'sentinel-vis-events-over-time', 'sentinel-vis-outcome-split', 'sentinel-vis-top-failing-ips'):
+    for vid in ('sentinel-vis-events-over-time', 'sentinel-vis-outcome-split', 'sentinel-vis-top-failing-ips'):
         assert vid in {o['id'] for o in objs}       # first S3 ids kept: earlier exports stay importable
 
 
@@ -78,6 +78,13 @@ def test_dashboards_are_landscape_without_overlap_or_text_blocks():
         assert bottom <= 32, dash['id']                     # fits one landscape screen
     kinds = {json.loads(o['attributes']['visState'])['type'] for o in objects() if o['type'] == 'visualization'}
     assert 'markdown' not in kinds and 'input_control_vis' not in kinds
+
+
+def test_kibana_overview_shows_trends_not_the_home_page_figures():
+    dash = next(o for o in objects() if o['id'] == kibana.DASHBOARD_ID)
+    used = {r['id'] for r in dash['references']}
+    kinds = {json.loads(o['attributes']['visState'])['type'] for o in objects() if o['id'] in used}
+    assert 'metric' not in kinds and kibana.VISUALIZATION_IDS['top_ips'] not in used
 
 
 def test_state_colours_match_the_application_identity():

@@ -133,3 +133,15 @@ code{color:var(--cyan)}
 .app::before{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--uv),var(--cyan));background-size:200% 100%;animation:sweep 12s linear infinite;z-index:20}
 @keyframes sweep{to{background-position:-200% 0}}
 @media(prefers-reduced-motion:reduce){.app::before{animation:none}}
+
+/* ---------- synthèse de l'indexation (Module 3 du sujet) ---------- */
+.synth{display:grid;grid-template-columns:minmax(260px,1fr) 2.4fr;gap:22px;align-items:center}
+.synth-figs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.synth-figs div{padding:12px 14px;border-radius:12px;background:var(--sf2);border:1px solid var(--bd)}
+.synth-figs span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600}
+.synth-figs b{display:block;margin-top:4px;font:700 24px/1.1 "Cascadia Code","JetBrains Mono",ui-monospace,Consolas,monospace;letter-spacing:-.03em}
+.synth-figs b.warn{color:var(--hi)}
+.synth-charts{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+.synth-charts figure{margin:0}.synth-charts figcaption{font-size:12px;font-weight:600;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em}
+.chart-box.short{height:170px;position:relative}
+@media(max-width:1100px){.synth{grid-template-columns:1fr}.synth-charts{grid-template-columns:1fr}}

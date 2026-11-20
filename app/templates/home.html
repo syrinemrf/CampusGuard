@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Centre de pilotage{% endblock %}
 {% block h1 %}Centre de pilotage{% endblock %}
-{% block head %}<script src="{{ url_for('static', filename='js/home.js') }}" defer></script>{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}" defer></script><script src="{{ url_for('static', filename='js/home.js') }}" defer></script>{% endblock %}
 {% macro delta(kpi, worse_when_up=True, unit='%') -%}
   {%- if kpi.delta_pct is none -%}<em class="mu">pas de comparaison</em>
   {%- elif kpi.delta_pct == 0 -%}<em class="mu">stable</em>
@@ -24,12 +24,26 @@
   <button class="btn" type="button" id="prefs-reset">Tout réafficher</button> <span class="sub" id="prefs-msg" role="status"></span>
 </details>
 {% if a and a.events == 0 and fr and fr.total > 0 %}
-<div class="alert info">Aucun événement sur les {{ a.period_label }}. Dernier événement reçu
-  le {{ fr.newest[:16].replace('T', ' ') }} UTC (il y a {{ fmt_age(fr.newest_age_seconds) }}) :
+<div class="alert info">Aucun événement sur les {{ a.period_label }}.{% if fr.newest %} Dernier événement reçu
+  le {{ fr.newest[:16].replace('T', ' ') }} UTC (il y a {{ fmt_age(fr.newest_age_seconds) }}).{% endif %} Élargir la période :
   {% for key, label in ov.periods.items() if key != ov.period %}<a href="{{ url_for('web.home', period=key) }}">{{ label }}</a>{{ ', ' if not loop.last }}{% endfor %}.</div>
 {% elif fr and fr.total == 0 %}
 <div class="alert info">Aucun événement indexé pour le moment. <a href="{{ url_for('web.upload') }}">Importez un fichier</a> ou lancez le simulateur (voir README).</div>
 {% endif %}
+
+{% if widgets.global and stats %}<script type="application/json" id="chart-data">{{ stats|tojson }}</script>
+<section class="cd block synth">
+  <div class="synth-figs">
+    <div><span>Logs indexés</span><b>{{ '{:,}'.format(stats.total).replace(',', ' ') }}</b></div>
+    <div><span>Aujourd’hui (UTC)</span><b>{{ '{:,}'.format(stats.today).replace(',', ' ') }}</b></div>
+    <div><span>Erreurs (ERROR / CRITICAL)</span><b class="{{ 'warn' if stats.errors }}">{{ '{:,}'.format(stats.errors).replace(',', ' ') }}</b></div>
+    <div><span>Fichiers importés</span><b>{{ stats.uploads }}</b></div>
+  </div>
+  <div class="synth-charts">
+    <figure><figcaption>Volume indexé dans le temps</figcaption><div class="chart-box short"><canvas id="chart-timeline" role="img" aria-label="Nombre d’événements indexés dans le temps"></canvas></div></figure>
+    <figure><figcaption>Répartition par niveau</figcaption><div class="chart-box short"><canvas id="chart-levels" role="img" aria-label="Répartition des événements par niveau de log"></canvas></div></figure>
+  </div>
+</section>{% endif %}
 
 {% if widgets.kpis and a %}{% set k = a.kpis %}
 <div class="g g4">
