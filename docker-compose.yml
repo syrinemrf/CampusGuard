@@ -75,7 +75,7 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.19.10}
     restart: unless-stopped
-    mem_limit: 768m
+    mem_limit: 1g        # tas Java 384 Mo + 4 pipelines (dont le client Kafka) : 768 Mo était à 98 % sur la stack réelle
     environment:
       LS_JAVA_OPTS: "-Xms384m -Xmx384m"
       XPACK_MONITORING_ENABLED: "false"
