@@ -13,3 +13,5 @@ datasets/rejected/*
 !datasets/rejected/.gitkeep
 reports/private/
 reports/feasibility-*.txt
+datasets/stream/*
+!datasets/stream/.gitkeep

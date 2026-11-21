@@ -1,0 +1,208 @@
+/* ==========================================================================
+   Sentinel — identité visuelle (S3)
+   Trois couleurs : Nuit (#070B16), Cyan signal (#18D6C8), Violet UV (#7B5CFF).
+   Les couleurs d'état (critique, haute, moyenne, info, ok) restent sémantiques.
+   Thème clair par défaut, thème sombre disponible (bouton « Thème »).
+   Aucun style en ligne : la CSP « style-src 'self' » est respectée.
+   ========================================================================== */
+:root,[data-theme=light]{
+  --night:#0b1530;--cyan:#0aa9a0;--uv:#6a4cf0;
+  --bg:#f3f6fb;--sf:rgba(255,255,255,.88);--sf2:#f6f8fc;--ink:#0d1730;--mut:#5d6b85;--bd:rgba(13,23,48,.09);
+  --ac:var(--cyan);--acs:rgba(10,169,160,.1);--ac2:var(--uv);
+  --cr:#e0344f;--hi:#e0691a;--me:#b88300;--lo:#2f6fe0;--ok:#16935f;
+  --sh:0 1px 2px rgba(13,23,48,.04),0 16px 34px -22px rgba(13,23,48,.28);
+  --glow:0 0 0 3px rgba(10,169,160,.16);
+  --grad:linear-gradient(135deg,var(--cyan),var(--uv));
+  --on-grad:#fff;--side:rgba(255,255,255,.82);--field:#fff;--code-bg:#f4f6fb;
+  color-scheme:light;
+}
+[data-theme=dark]{
+  --night:#070b16;--cyan:#18d6c8;--uv:#7b5cff;
+  --bg:#070b16;--sf:rgba(14,21,38,.78);--sf2:rgba(24,34,58,.72);--ink:#e7eefb;--mut:#8b9ab5;--bd:rgba(122,148,196,.16);
+  --ac:var(--cyan);--acs:rgba(24,214,200,.12);--ac2:var(--uv);
+  --cr:#ff4d6d;--hi:#ff8a3d;--me:#f5c04a;--lo:#4da3ff;--ok:#2ed47a;
+  --sh:0 1px 0 rgba(255,255,255,.03) inset,0 18px 40px -24px rgba(0,0,0,.8);
+  --glow:0 0 0 1px rgba(24,214,200,.25),0 0 24px -6px rgba(24,214,200,.45);
+  --grad:linear-gradient(135deg,var(--cyan),var(--uv));
+  --on-grad:#05101a;--side:linear-gradient(180deg,rgba(10,16,30,.92),rgba(10,16,30,.78));--field:rgba(7,11,22,.55);--code-bg:rgba(5,9,18,.6);
+  color-scheme:dark;
+}
+
+/* ---------- fond : grille fine + halos cyan / violet qui dérivent lentement ---------- */
+body{background:var(--bg);font-family:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,sans-serif;position:relative;min-height:100vh}
+body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1}
+body::before{
+  background:
+    radial-gradient(900px 600px at 10% -10%,rgba(10,169,160,.24),transparent 60%),
+    radial-gradient(800px 700px at 105% 110%,rgba(106,76,240,.22),transparent 60%),
+    radial-gradient(700px 420px at 72% 12%,rgba(106,76,240,.07),transparent 70%);
+  animation:drift 38s ease-in-out infinite alternate;
+}
+body::after{
+  background-image:
+    linear-gradient(rgba(60,90,150,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(60,90,150,.07) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse at 50% 30%,#000 30%,transparent 85%);
+  -webkit-mask-image:radial-gradient(ellipse at 50% 30%,#000 30%,transparent 85%);
+}
+[data-theme=dark] body::before{filter:saturate(1.3)}
+@keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-2%,1.5%,0) scale(1.04)}100%{transform:translate3d(2%,-1%,0) scale(1.02)}}
+@media(prefers-reduced-motion:reduce){body::before{animation:none}}
+
+/* ---------- barre latérale ---------- */
+aside{background:var(--side);border-right:1px solid var(--bd);backdrop-filter:blur(14px)}
+.logo{gap:11px;font-size:18px;letter-spacing:.02em}
+.logo svg{filter:drop-shadow(0 2px 8px rgba(10,169,160,.35))}
+.logo span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.grp{text-transform:uppercase;letter-spacing:.12em;font-size:10.5px;font-weight:700;opacity:.8}
+.nv{position:relative;transition:background .15s,color .15s}
+.nv.on{background:linear-gradient(90deg,var(--acs),rgba(106,76,240,.07));color:var(--ink)}
+.nv.on::before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--grad)}
+.av{background:var(--grad);color:var(--on-grad)}
+
+/* ---------- en-tête de page ---------- */
+.top{background:linear-gradient(180deg,var(--bg) 70%,transparent)}
+h1{font-weight:750;letter-spacing:-.02em}
+h1::after{content:"";display:block;width:42px;height:3px;border-radius:3px;margin-top:6px;background:var(--grad)}
+
+/* ---------- cartes ---------- */
+.cd{background:var(--sf);border:1px solid var(--bd);backdrop-filter:blur(10px);box-shadow:var(--sh)}
+.cd h2{letter-spacing:-.005em}
+.kp{position:relative;overflow:hidden}
+.kp::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--grad);opacity:.85}
+.kp b{font-family:"Cascadia Code","JetBrains Mono",ui-monospace,Consolas,monospace;font-weight:700;letter-spacing:-.03em}
+.kp span{text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:600}
+.alerts-strip.has{border-left:0;box-shadow:var(--sh),inset 3px 0 0 var(--cr)}
+
+/* ---------- boutons, champs, puces ---------- */
+.btn{background:var(--sf2);border-color:var(--bd);transition:border-color .15s,box-shadow .15s,transform .05s}
+.btn:hover{border-color:var(--cyan);background:var(--sf2)}
+.btn:active{transform:translateY(1px)}
+.btn.p{background:var(--grad);border:0;color:var(--on-grad);box-shadow:0 8px 20px -10px rgba(10,169,160,.65)}
+.btn.p:hover{filter:brightness(1.06)}
+[data-theme] .btn.p{color:var(--on-grad)}
+.in{background:var(--field);border-color:var(--bd)}
+.in:focus{outline:none;border-color:var(--cyan);box-shadow:var(--glow)}
+.chip{background:transparent;border-color:var(--bd)}
+.chip.on{background:var(--acs);color:var(--cyan);border-color:color-mix(in srgb,var(--cyan) 40%,transparent)}
+.badge{background:var(--hi);box-shadow:0 2px 8px color-mix(in srgb,var(--hi) 55%,transparent)}
+.badge.crit{background:var(--cr);box-shadow:0 2px 10px color-mix(in srgb,var(--cr) 60%,transparent)}
+.pl{border:1px solid color-mix(in srgb,var(--c) 30%,transparent)}
+.dot.ok{box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent)}.dot.err{box-shadow:0 0 0 3px color-mix(in srgb,var(--cr) 20%,transparent)}
+
+/* ---------- tableaux ---------- */
+th{text-transform:uppercase;letter-spacing:.07em;font-size:11px}
+tbody tr:hover{background:var(--acs)}
+.mono,code{font-family:"Cascadia Code","JetBrains Mono",ui-monospace,Consolas,monospace}
+code{color:var(--cyan)}
+.raw{background:var(--code-bg)}
+.daybar i{background:var(--grad)}
+
+/* ---------- connexion et erreurs ---------- */
+.lgn .cd{border-color:color-mix(in srgb,var(--cyan) 25%,transparent);box-shadow:var(--sh),0 30px 70px -30px rgba(106,76,240,.45)}
+.login-brand{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.login-brand svg{width:40px;height:40px;filter:drop-shadow(0 3px 10px rgba(10,169,160,.4))}
+.login-brand b{font-size:22px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.err-code{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---------- page Kibana : onglets thématiques + cadre plein écran ---------- */
+.kb-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.kb-tab{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;border:1px solid var(--bd);background:var(--sf);color:var(--mut);font-weight:600;font-size:13.5px}
+.kb-tab:hover{color:var(--ink);border-color:var(--cyan)}
+.kb-tab.on{color:var(--ink);background:linear-gradient(90deg,var(--acs),rgba(106,76,240,.1));border-color:var(--cyan);box-shadow:var(--glow)}
+.kb-tab i{width:8px;height:8px;border-radius:50%;background:var(--grad)}
+.kb-open{margin-left:auto;font-size:13px;color:var(--mut)}
+.kb-open:hover{color:var(--cyan)}
+.kibana-frame{height:calc(100vh - 150px);min-height:560px;border-radius:14px;border:1px solid var(--bd);background:#fff;box-shadow:var(--sh)}
+.page-kibana .crumbs{display:none}
+.page-kibana .foot{display:none}
+@media(max-width:900px){.kibana-frame{height:75vh}.kb-open{margin-left:0}}
+
+/* ---------- centre de pilotage : disposition paysage ---------- */
+.duo{align-items:stretch}.duo>.cd{margin:0}
+.duo .alerts-strip{margin-bottom:0}
+.health-grid{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:26px;margin-top:8px}
+.health-grid h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut)}
+@media(max-width:1200px){.health-grid{grid-template-columns:1fr 1fr}}
+.cd.block{margin-bottom:16px}.health-grid h3.mt{margin-top:16px}
+.iplink{color:var(--cyan);text-decoration:none;border-bottom:1px dashed var(--cyan)}.iplink:hover{border-bottom-style:solid}
+@media(max-width:700px){.health-grid{grid-template-columns:1fr}}
+
+/* fine barre de signature en haut de chaque page */
+.app::before{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--uv),var(--cyan));background-size:200% 100%;animation:sweep 12s linear infinite;z-index:20}
+@keyframes sweep{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.app::before{animation:none}}
+
+/* ---------- synthèse de l'indexation (Module 3 du sujet) ---------- */
+.synth{display:grid;grid-template-columns:minmax(260px,1fr) 2.4fr;gap:22px;align-items:center}
+.synth-figs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.synth-figs div{padding:12px 14px;border-radius:12px;background:var(--sf2);border:1px solid var(--bd)}
+.synth-figs span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:600}
+.synth-figs b{display:block;margin-top:4px;font:700 24px/1.1 "Cascadia Code","JetBrains Mono",ui-monospace,Consolas,monospace;letter-spacing:-.03em}
+.synth-figs b.warn{color:var(--hi)}
+.synth-charts{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+.synth-charts figure{margin:0}.synth-charts figcaption{font-size:12px;font-weight:600;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em}
+.chart-box.short{height:170px;position:relative}
+@media(max-width:1100px){.synth{grid-template-columns:1fr}.synth-charts{grid-template-columns:1fr}}
+
+/* ---------- temps réel (S5) : flux en direct, chaîne d'acquisition ---------- */
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:8px;box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.live-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px}.live-hint{margin:0;font-size:13px}
+.conn{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:99px;border:1px solid var(--bd);background:var(--sf);font-weight:600;font-size:13px}
+.conn i{width:9px;height:9px;border-radius:50%;background:var(--mut)}
+.conn[data-state=live]{border-color:color-mix(in srgb,var(--ok) 45%,transparent)}.conn[data-state=live] i{background:var(--ok);animation:pulse 1.6s infinite}
+.conn[data-state=connecting] i,.conn[data-state=stale] i{background:var(--me)}
+.conn[data-state=down]{border-color:color-mix(in srgb,var(--cr) 45%,transparent)}.conn[data-state=down] i{background:var(--cr)}
+.live-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px}
+.lk{padding:14px 16px}.lk span{display:block;color:var(--mut)}.lk b{display:block;font-size:26px;margin:4px 0 2px}.lk small{color:var(--mut);font-size:12px}.lk b.warn{color:var(--hi)}
+.live-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}.live-charts figure{margin:0;padding:14px 16px}
+.live-charts figcaption{font-size:12px;font-weight:600;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em}
+.console-wrap{padding:0;overflow:hidden}
+.console-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--bd)}
+.console-bar .in{width:auto;min-width:170px}.console-bar #f-text{flex:1;min-width:200px}.console-bar .autoscroll{white-space:nowrap;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)}
+.chip.lv-info.on{color:var(--lo);border-color:color-mix(in srgb,var(--lo) 40%,transparent);background:color-mix(in srgb,var(--lo) 10%,transparent)}
+.chip.lv-warning.on{color:var(--me);border-color:color-mix(in srgb,var(--me) 40%,transparent);background:color-mix(in srgb,var(--me) 10%,transparent)}
+.chip.lv-error.on{color:var(--hi);border-color:color-mix(in srgb,var(--hi) 40%,transparent);background:color-mix(in srgb,var(--hi) 10%,transparent)}
+.chip.lv-critical.on{color:var(--cr);border-color:color-mix(in srgb,var(--cr) 40%,transparent);background:color-mix(in srgb,var(--cr) 10%,transparent)}
+.console{height:52vh;min-height:320px;overflow:auto;background:var(--code-bg);font:12.5px/1.55 "Cascadia Code","JetBrains Mono",ui-monospace,Consolas,monospace;padding:6px 0}
+.console .ln{display:flex;gap:12px;align-items:baseline;padding:2px 14px;border:0;font-size:12.5px;border-left:3px solid transparent}
+.console .ln:hover{background:var(--acs)}
+.console .ln time{color:var(--mut);flex:none}.console .ln b{flex:none;width:72px;font-weight:700}.console .ln .svc{flex:none;color:var(--uv);width:80px;overflow:hidden;text-overflow:ellipsis;display:inline}
+.console .ln .ip{flex:none;color:var(--cyan);text-decoration:none}.console .ln .ip:hover{text-decoration:underline}
+.console .ln .msg{color:var(--ink);word-break:break-word}
+.console .lv-debug b{color:var(--mut)}.console .lv-info b{color:var(--lo)}.console .lv-warning b{color:var(--me)}
+.console .lv-error b{color:var(--hi)}.console .lv-critical b{color:var(--cr)}.console .lv-critical{background:color-mix(in srgb,var(--cr) 7%,transparent)}
+.console .ln.fail{border-left-color:var(--hi)}
+.console .ln{animation:enter .35s ease-out}
+@keyframes enter{from{background:color-mix(in srgb,var(--cyan) 18%,transparent)}to{background:transparent}}
+.console-empty{padding:28px 18px;color:var(--mut);font-family:"Segoe UI",Inter,system-ui,sans-serif}
+.console-foot{padding:8px 14px;border-top:1px solid var(--bd);font-size:12px}
+.toasts{position:fixed;right:22px;top:18px;display:flex;flex-direction:column;gap:8px;z-index:40;max-width:420px}
+.toast{display:block;padding:12px 16px;border-radius:12px;background:var(--sf);border:1px solid var(--bd);box-shadow:var(--sh);color:var(--ink);text-decoration:none;border-left:4px solid var(--me);backdrop-filter:blur(10px);animation:slidein .3s ease-out;transition:opacity .5s,transform .5s}
+.toast b{margin-right:6px;font-size:12px;letter-spacing:.06em}.toast.sev-critical{border-left-color:var(--cr)}.toast.sev-critical b{color:var(--cr)}.toast.sev-high{border-left-color:var(--hi)}.toast.sev-high b{color:var(--hi)}
+.toast.out{opacity:0;transform:translateX(20px)}
+@keyframes slidein{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+@media(max-width:1100px){.live-kpis{grid-template-columns:repeat(3,1fr)}.live-charts{grid-template-columns:1fr}}
+@media(max-width:700px){.live-kpis{grid-template-columns:1fr 1fr}.console .ln{flex-wrap:wrap;gap:4px 10px}.console .ln .svc{display:none}}
+@media(prefers-reduced-motion:reduce){.console .ln,.live-dot,.conn i{animation:none}}
+.chain{list-style:none;margin:16px 0 4px;padding:0;display:grid;grid-template-columns:repeat(7,1fr);gap:10px;counter-reset:hop}
+.hop{position:relative;padding:12px 12px 12px;border-radius:12px;border:1px solid var(--bd);background:var(--sf2);display:flex;flex-direction:column;gap:4px;min-height:120px}
+.hop::after{content:"→";position:absolute;right:-12px;top:42%;color:var(--mut);font-weight:700}.hop:last-child::after{display:none}
+.hop b{font-size:14px}.hop small{color:var(--mut);font-size:12px}.hop .pl{align-self:flex-start;margin-top:auto}.hop em{font-style:normal;font-size:11.5px;color:var(--mut)}
+.hop.ok{border-top:3px solid var(--ok)}.hop.idle,.hop.degraded{border-top:3px solid var(--me)}.hop.absent{border-top:3px solid var(--mut)}.hop.error{border-top:3px solid var(--cr)}
+.svc-list{list-style:none;margin:0;padding:0}.svc-list li{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--bd)}.svc-list .pl{margin-left:auto}
+.synth-figs.lat{margin-top:10px}
+@media(max-width:1200px){.chain{grid-template-columns:repeat(4,1fr)}.hop::after{display:none}}
+@media(max-width:700px){.chain{grid-template-columns:1fr 1fr}}
+
+/* ---------- incidents (S5) : fil, veille, escalade ---------- */
+.thread{margin-top:6px}.thread summary{cursor:pointer;font-size:12.5px;color:var(--cyan);font-weight:600}
+.tl{list-style:none;margin:8px 0;padding:0 0 0 12px;border-left:2px solid var(--bd);font-size:12.5px}
+.tl li{padding:3px 0;color:var(--mut)}.tl li b{color:var(--ink)}.tl time{font-family:"Cascadia Code",ui-monospace,monospace;font-size:11.5px}
+.tl li.cm{color:var(--ink)}.tl li.cm::before{content:"💬 "}
+.comment-form{display:flex;gap:6px;margin-top:4px}.comment-form .in{flex:1}
+.menu{display:inline-block;position:relative}.menu summary{list-style:none;cursor:pointer}.menu summary::-webkit-details-marker{display:none}
+.menu[open]>div{position:absolute;z-index:5;right:0;top:110%;display:flex;gap:4px;padding:6px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;box-shadow:var(--sh)}
+.pl.esc{font-size:11px}

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Flux en direct{% endblock %}
+{% block h1 %}Flux en direct{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}" defer></script><script src="{{ url_for('static', filename='js/live.js') }}" defer></script>{% endblock %}
+{% block content %}
+<div class="live-head">
+  <div class="conn" id="conn" data-state="connecting" role="status" aria-live="polite"><i aria-hidden="true"></i><span id="conn-text">Connexion…</span></div>
+  <p class="muted live-hint">Les lignes arrivent au moment où elles sont indexées : sshd → Filebeat → Kafka → Logstash → Elasticsearch → ici, sans rechargement. <a href="{{ url_for('web.sources_page') }}">État de la chaîne</a></p>
+</div>
+{% if not ws_enabled %}<div class="alert warn" role="status">Le serveur WebSocket n’est pas installé (flask-sock). Reconstruisez l’image : <code>docker compose up -d --build webapp</code>.</div>{% endif %}
+
+<section class="live-kpis" aria-label="Métriques en direct">
+  <div class="cd kp lk"><span>Logs / seconde</span><b id="m-rate">—</b><small id="m-total">0 reçu</small></div>
+  <div class="cd kp lk"><span>Erreurs / minute</span><b id="m-errors">—</b><small>niveaux ERROR et CRITICAL</small></div>
+  <div class="cd kp lk"><span>Latence (médiane)</span><b id="m-p50">—</b><small id="m-p95">p95 —</small></div>
+  <div class="cd kp lk"><span>Requêtes en cours</span><b id="m-active">—</b><small>sur l’application</small></div>
+  <div class="cd kp lk"><span>Utilisateurs connectés</span><b id="m-users">—</b><small id="m-viewers">actifs ces 5 min</small></div>
+</section>
+
+<section class="live-charts">
+  <figure class="cd"><figcaption>Débit et erreurs, 2 dernières minutes</figcaption><div class="chart-box short"><canvas id="c-rate" aria-label="Débit de logs par seconde"></canvas></div></figure>
+  <figure class="cd"><figcaption>Latence de bout en bout (ms)</figcaption><div class="chart-box short"><canvas id="c-lat" aria-label="Latence médiane et p95"></canvas></div></figure>
+</section>
+
+<div class="toasts" id="toasts" aria-live="assertive"></div>
+
+<section class="cd console-wrap">
+  <div class="console-bar">
+    <div class="chips" id="levels" role="group" aria-label="Niveaux affichés">
+      {% for lv in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] %}<button type="button" class="chip on lv-{{ lv|lower }}" data-level="{{ lv }}" aria-pressed="true">{{ lv }}</button>{% endfor %}
+    </div>
+    <select class="in" id="f-service" aria-label="Source"><option value="">Toutes les sources</option></select>
+    <input class="in" id="f-text" type="search" placeholder="Filtrer (IP, compte, texte…)" aria-label="Filtrer les lignes">
+    <label class="autoscroll"><input type="checkbox" id="f-scroll" checked> Défilement auto</label>
+    <button class="btn" type="button" id="b-pause" aria-pressed="false">Pause</button>
+    <button class="btn" type="button" id="b-clear">Vider</button>
+  </div>
+  <div class="console" id="console" role="log" aria-label="Lignes de logs en direct" tabindex="0">
+    <p class="console-empty" id="console-empty">En attente de lignes… Lancez par exemple <code>python scripts/replay_openssh.py</code> (journal sshd réel) ou une connexion à l’application.</p>
+  </div>
+  <div class="console-foot muted"><span id="shown">0</span> ligne(s) affichée(s) · tampon circulaire de 500 lignes · <span id="pending"></span></div>
+</section>
+{% endblock %}

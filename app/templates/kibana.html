@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Kibana{% endblock %}
+{% block h1 %}Dashboard Kibana{% endblock %}
+{% block content %}
+<nav class="kb-bar" aria-label="Tableaux de bord Kibana">
+  {% for t in tabs %}<a class="kb-tab {% if t.key == tab %}on{% endif %}" href="{{ url_for('web.kibana_page', tab=t.key) }}" {% if t.key == tab %}aria-current="page"{% endif %}><i aria-hidden="true"></i>{{ t.label }}</a>{% endfor %}
+  <a class="kb-open" href="{{ open_url }}" target="_blank" rel="noopener" title="Ouvrir ce tableau de bord dans Kibana">Ouvrir dans Kibana ↗</a>
+</nav>
+<iframe class="kibana-frame" src="{{ embed_url }}" title="Tableau de bord Kibana : {{ (tabs|selectattr('key', 'equalto', tab)|first).label }}" loading="lazy" referrerpolicy="no-referrer"></iframe>
+{% endblock %}

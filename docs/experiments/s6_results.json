@@ -1,0 +1,378 @@
+{
+  "generated_at": "2026-11-20T22:26:05+00:00",
+  "anomaly": {
+    "windows": 442,
+    "attack_windows": 50,
+    "train_windows": 361,
+    "contamination": 0.01,
+    "rules": {
+      "tp": 16,
+      "fp": 4,
+      "fn": 34,
+      "precision": 0.8,
+      "recall": 0.32,
+      "f1": 0.457,
+      "attack_ips_found": 10,
+      "attack_ips": 29,
+      "benign_ips_flagged": 4,
+      "benign_ips": 92
+    },
+    "isolation_forest": {
+      "tp": 39,
+      "fp": 12,
+      "fn": 11,
+      "precision": 0.765,
+      "recall": 0.78,
+      "f1": 0.772,
+      "attack_ips_found": 24,
+      "attack_ips": 29,
+      "benign_ips_flagged": 11,
+      "benign_ips": 92
+    },
+    "hybrid": {
+      "tp": 39,
+      "fp": 12,
+      "fn": 11,
+      "precision": 0.765,
+      "recall": 0.78,
+      "f1": 0.772,
+      "attack_ips_found": 24,
+      "attack_ips": 29,
+      "benign_ips_flagged": 11,
+      "benign_ips": 92
+    },
+    "average_precision": 0.661,
+    "examples": {
+      "iso_only": [
+        {
+          "ip": "173.234.31.186",
+          "failures": 1,
+          "invalid_users": 1,
+          "distinct_users": 1,
+          "preauth_drops": 2,
+          "why": [
+            {
+              "feature": "preauth_drops",
+              "label": "coupures avant authentification",
+              "value": 2.0,
+              "z": 4.4
+            },
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            }
+          ]
+        },
+        {
+          "ip": "173.234.31.186",
+          "failures": 1,
+          "invalid_users": 1,
+          "distinct_users": 1,
+          "preauth_drops": 2,
+          "why": [
+            {
+              "feature": "preauth_drops",
+              "label": "coupures avant authentification",
+              "value": 2.0,
+              "z": 4.4
+            },
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            }
+          ]
+        },
+        {
+          "ip": "52.80.34.196",
+          "failures": 1,
+          "invalid_users": 1,
+          "distinct_users": 1,
+          "preauth_drops": 1,
+          "why": [
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "invalid_users",
+              "label": "comptes inexistants essayés",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            }
+          ]
+        },
+        {
+          "ip": "202.100.179.208",
+          "failures": 1,
+          "invalid_users": 1,
+          "distinct_users": 1,
+          "preauth_drops": 1,
+          "why": [
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "invalid_users",
+              "label": "comptes inexistants essayés",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            }
+          ]
+        }
+      ],
+      "rules_only": [],
+      "iso_false_alarms": [
+        {
+          "ip": "102.157.133.64",
+          "failures": 4,
+          "invalid_users": 0,
+          "distinct_users": 1,
+          "preauth_drops": 1,
+          "why": [
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 4.0,
+              "z": 6.4
+            },
+            {
+              "feature": "events",
+              "label": "volume de lignes",
+              "value": 9.0,
+              "z": 3.8
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            }
+          ]
+        },
+        {
+          "ip": "197.0.203.77",
+          "failures": 6,
+          "invalid_users": 0,
+          "distinct_users": 1,
+          "preauth_drops": 0,
+          "why": [
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 6.0,
+              "z": 7.8
+            },
+            {
+              "feature": "events",
+              "label": "volume de lignes",
+              "value": 13.0,
+              "z": 4.6
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 0.8571428571428571,
+              "z": 2.5
+            }
+          ]
+        },
+        {
+          "ip": "41.226.109.58",
+          "failures": 2,
+          "invalid_users": 0,
+          "distinct_users": 1,
+          "preauth_drops": 0,
+          "why": [
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 2.0,
+              "z": 4.4
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "events",
+              "label": "volume de lignes",
+              "value": 5.0,
+              "z": 2.6
+            }
+          ]
+        },
+        {
+          "ip": "41.226.109.58",
+          "failures": 2,
+          "invalid_users": 0,
+          "distinct_users": 1,
+          "preauth_drops": 1,
+          "why": [
+            {
+              "feature": "failures",
+              "label": "mots de passe refusés",
+              "value": 2.0,
+              "z": 4.4
+            },
+            {
+              "feature": "preauth_drops",
+              "label": "coupures avant authentification",
+              "value": 1.0,
+              "z": 2.8
+            },
+            {
+              "feature": "failure_ratio",
+              "label": "part d’échecs",
+              "value": 1.0,
+              "z": 2.8
+            }
+          ]
+        }
+      ]
+    },
+    "counts": {
+      "iso_only": 23,
+      "rules_only": 0,
+      "iso_false_alarms": 12
+    }
+  },
+  "templates": {
+    "messages": 2000,
+    "templates": 27,
+    "minilm": true,
+    "results": [
+      {
+        "method": "TF-IDF, brut",
+        "threshold": 0.34,
+        "clusters": 41,
+        "templates": 14,
+        "ga": 0.337,
+        "ari": 0.95,
+        "nmi": 0.902,
+        "seconds": 0.021
+      },
+      {
+        "method": "TF-IDF, masqué",
+        "threshold": 0.06,
+        "clusters": 14,
+        "templates": 14,
+        "ga": 0.693,
+        "ari": 0.964,
+        "nmi": 0.973,
+        "seconds": 0.015
+      },
+      {
+        "method": "MiniLM, brut",
+        "threshold": 0.12,
+        "clusters": 54,
+        "templates": 14,
+        "ga": 0.337,
+        "ari": 0.955,
+        "nmi": 0.92,
+        "seconds": 11.902
+      },
+      {
+        "method": "MiniLM, masqué",
+        "threshold": 0.02,
+        "clusters": 13,
+        "templates": 14,
+        "ga": 0.693,
+        "ari": 0.962,
+        "nmi": 0.973,
+        "seconds": 13.174
+      },
+      {
+        "method": "Drain3 (référence)",
+        "threshold": null,
+        "clusters": 14,
+        "templates": 14,
+        "ga": 1.0,
+        "ari": 1.0,
+        "nmi": 1.0,
+        "seconds": 0.013
+      }
+    ],
+    "novelty": {
+      "TF-IDF, masqué": {
+        "precision": 0.98,
+        "recall": 0.593,
+        "f1": 0.739
+      },
+      "MiniLM, masqué": {
+        "precision": 0.966,
+        "recall": 0.532,
+        "f1": 0.686
+      }
+    },
+    "best": "TF-IDF, masqué",
+    "examples": [
+      {
+        "count": 488,
+        "example": "pam_unix(sshd:auth): authentication failure; logname= uid=<NUM> euid=<NUM> tty=ssh ruser= rhost=<IP>"
+      },
+      {
+        "count": 413,
+        "example": "Received disconnect from <IP>: <NUM>: Bye Bye [preauth]"
+      },
+      {
+        "count": 383,
+        "example": "Failed password for <USER> from <IP> port <NUM> ssh2"
+      },
+      {
+        "count": 135,
+        "example": "pam_unix(sshd:auth): check pass; user unknown"
+      },
+      {
+        "count": 135,
+        "example": "Failed password for invalid user <USER> from <IP> port <NUM> ssh2"
+      },
+      {
+        "count": 113,
+        "example": "input_userauth_request: invalid user <USER> [preauth]"
+      },
+      {
+        "count": 112,
+        "example": "Invalid user <USER> from <IP>"
+      },
+      {
+        "count": 83,
+        "example": "reverse mapping checking getaddrinfo for <HOST> [<IP>] failed - POSSIBLE BREAK-IN ATTEMPT!"
+      }
+    ]
+  }
+}

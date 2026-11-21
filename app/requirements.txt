@@ -1,5 +1,11 @@
 Flask==3.1.1
+Flask-Login==0.6.3
 gunicorn==23.0.0
 pymongo==4.13.2
 redis==6.2.0
 requests==2.32.4
+flask-sock==0.7.0
+simple-websocket==1.1.0
+reportlab==4.2.5
+numpy==2.2.6
+scikit-learn==1.7.2

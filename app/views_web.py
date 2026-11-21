@@ -1,0 +1,137 @@
+"""Server-rendered pages (Jinja2). Data loading is done by the JSON API via small JS files."""
+from flask import Blueprint, current_app, render_template, request
+from flask_login import current_user
+
+from app.kibana import DASHBOARDS, dashboard_url, discover_url
+from app.security import ROLE_ADMIN, ROLE_ANALYST, ROLE_LABELS, roles_required
+from app.services.overview import PERIODS, OverviewService, fmt_age
+from app.services.prefs import WIDGET_LABELS, DashboardPrefs
+from app.services.search import SearchService
+from app.services.uploads import UploadService
+from app.stores import ElasticError
+
+bp = Blueprint('web', __name__)
+SERVICE_NAMES = {'elasticsearch': 'Elasticsearch', 'mongodb': 'MongoDB', 'redis': 'Redis', 'logstash': 'Logstash',
+                 'kibana': 'Kibana', 'alert_worker': 'Worker d’alertes'}
+
+
+@bp.get('/')
+@roles_required()
+def home():
+    stores = current_app.extensions['sentinel_stores']
+    cfg = current_app.extensions['sentinel_config']
+    prefs = DashboardPrefs(stores.db)
+    period = request.args.get('period')
+    if period in PERIODS:
+        prefs.save(current_user.username, period=period)      # the chosen period is remembered (MongoDB)
+    else:
+        period = prefs.period(current_user.username)
+    overview = OverviewService(stores, cfg, http=current_app.extensions.get('sentinel_http')).build(period)
+    search = SearchService(stores.db, stores.redis, stores.es, cfg)
+    upload_service = UploadService(stores.db, stores.es, cfg)
+    stats = None
+    if overview['es_error'] is None:
+        try:
+            stats = search.stats(upload_service.count_imported())   # Module 3 of the statement: global figures + charts
+        except ElasticError:
+            stats = None
+    return render_template('home.html', ov=overview, stats=stats, es_error=overview['es_error'], fmt_age=fmt_age,
+                           uploads=upload_service.list(current_user, limit=5),
+                           history=search.history(current_user, 5), page='home',
+                           widgets=prefs.get(current_user.username), widget_labels=WIDGET_LABELS,
+                           kibana_url=dashboard_url(cfg.kibana_public_url),
+                           service_names=SERVICE_NAMES)
+
+
+@bp.get('/upload')
+@roles_required()
+def upload():
+    cfg = current_app.extensions['sentinel_config']
+    can_upload = current_user.role in (ROLE_ADMIN, ROLE_ANALYST)
+    return render_template('upload.html', page='upload', can_upload=can_upload, max_mb=cfg.max_upload_mb)
+
+
+@bp.get('/search')
+@roles_required()
+def search_page():
+    from app.services.search import SEARCHABLE_FIELDS
+    return render_template('search.html', page='search', fields=SEARCHABLE_FIELDS)
+
+
+@bp.get('/kibana')
+@roles_required()
+def kibana_page():
+    base = current_app.extensions['sentinel_config'].kibana_public_url
+    tab = request.args.get('tab') if request.args.get('tab') in DASHBOARDS else 'overview'
+    dash_id = DASHBOARDS[tab][0]
+    tabs = [{'key': k, 'label': label} for k, (_id, label) in DASHBOARDS.items()]
+    return render_template('kibana.html', page='kibana', tabs=tabs, tab=tab,
+                           embed_url=dashboard_url(base, embed=True, dashboard_id=dash_id),
+                           open_url=dashboard_url(base, dashboard_id=dash_id), discover_url=discover_url(base))
+
+
+@bp.get('/api/docs')
+@roles_required()
+def api_docs():
+    return render_template('docs.html', page='docs')
+
+
+@bp.get('/events/<event_id>')
+@roles_required()
+def event_page(event_id):
+    return render_template('event.html', page='search', event_id=event_id)
+
+
+@bp.get('/live')
+@roles_required()
+def live_page():
+    """Module H : flux continu poussé par WebSocket (aucune interrogation périodique)."""
+    return render_template('live.html', page='live', ws_enabled=current_app.extensions.get('sentinel_live', False))
+
+
+@bp.get('/sources')
+@roles_required()
+def sources_page():
+    """Sources & chaîne temps réel : état mesuré de chaque maillon, latence, services."""
+    from app.services.stream import StreamStatus
+    stores = current_app.extensions['sentinel_stores']
+    cfg = current_app.extensions['sentinel_config']
+    http = current_app.extensions.get('sentinel_http')
+    status = StreamStatus(stores, cfg, http=http).build()
+    ov = OverviewService(stores, cfg, http=http)
+    health = ov.health(_es_ok(stores))
+    try:
+        freshness = ov.freshness()
+    except ElasticError:
+        freshness = None
+    return render_template('sources.html', page='sources', st=status, health=health, freshness=freshness,
+                           fmt_age=fmt_age, service_names=SERVICE_NAMES, worker=ov.alerting().get('worker'))
+
+
+def _es_ok(stores):
+    try:
+        stores.es.search('logs-*', {'size': 0})
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+@bp.get('/reports')
+@roles_required()
+def reports_page():
+    """Rapport mensuel de conformité : aperçu des contrôles du mois choisi, puis téléchargement du PDF."""
+    from datetime import datetime, timezone
+    from app.services.report import MonthlyReport, ReportError
+    now = datetime.now(timezone.utc)
+    months = []
+    y, m = now.year, now.month
+    for _ in range(12):
+        months.append(f'{y}-{m:02d}')
+        y, m = (y - 1, 12) if m == 1 else (y, m - 1)
+    month = request.args.get('month') if request.args.get('month') in months else months[0]
+    data, error = None, None
+    try:
+        data = MonthlyReport(current_app.extensions['sentinel_stores'], current_app.extensions['sentinel_config']).collect(month)
+    except (ReportError, ElasticError) as exc:
+        error = str(exc)
+    return render_template('reports.html', page='reports', months=months, month=month, d=data, error=error)

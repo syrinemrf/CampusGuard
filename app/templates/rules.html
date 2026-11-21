@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Règles de détection{% endblock %}
+{% block h1 %}Règles de détection{% endblock %}
+{% block crumbs %}<a href="{{ url_for('alerts.alerts_page') }}">Alertes &amp; incidents</a><span aria-current="page">Règles</span>{% endblock %}
+{% block head %}<script src="{{ url_for('static', filename='js/rules.js') }}" defer></script>{% endblock %}
+{% set SEV = {'low': 'lo', 'medium': 'me2', 'high': 'hi', 'critical': 'cr'} %}
+{% block content %}
+<div id="rules-app" data-admin="{{ 'true' if is_admin else 'false' }}"></div>
+<p class="sub">Le worker d’alertes évalue chaque règle active sur une fenêtre glissante, en interrogeant Elasticsearch
+  (<code>logs-*</code>). Canaux : e-mail {% if smtp %}<span class="pl ok">configuré</span> — boîte de démonstration Mailpit : <a href="http://localhost:8025" target="_blank" rel="noopener">localhost:8025</a>{% else %}<span class="pl mu">SMTP_HOST non configuré</span>{% endif %}
+  · webhook {% if webhook %}<span class="pl ok">{{ webhook_format }}</span>{% else %}<span class="pl mu">non configuré</span>{% endif %}.</p>
+<div id="rules-msg" class="alert hidden" role="status"></div>
+
+<section class="cd">
+  <h2>Règles ({{ rules|length }})</h2>
+  <div class="tw"><table><thead><tr><th>Active</th><th>Règle</th><th>Condition</th><th>Gravité</th><th>Actions</th><th>Dernière évaluation</th><th></th></tr></thead><tbody>
+  {% for r in rules %}<tr>
+    <td>{% if is_admin %}<button class="tg {{ 'on' if r.enabled }}" type="button" role="switch" aria-checked="{{ 'true' if r.enabled else 'false' }}" aria-label="Activer {{ r.name }}" data-toggle="{{ r.id }}"></button>{% else %}{{ 'oui' if r.enabled else 'non' }}{% endif %}</td>
+    <td class="msg"><b>{{ r.name }}</b><br><small class="mu">{{ r.description }}</small><br><code class="small-code">{{ r.id }}</code></td>
+    <td class="msg"><small><b>{{ r.type_label }}</b> · {{ r.window }}{% if r.group_by %} · par {{ r.group_by }}{% endif %}
+      {% if r.type == 'cardinality' %} · ≥ {{ r.threshold }} {{ r.distinct_field }} distincts{% elif r.type != 'silence' %} · ≥ {{ r.threshold }}{% endif %}
+      {% if r.outside_hours %} · hors {{ r.outside_hours[0] }} h – {{ r.outside_hours[1] }} h{% endif %}<br>
+      <code class="small-code">{{ r.query or '(tous les logs)' }}</code>{% if r.pattern %}<br>regex : <code class="small-code">{{ r.pattern }}</code>{% endif %}</small></td>
+    <td><span class="pl {{ SEV[r.severity] }}">{{ r.severity_label }}</span><br><small class="mu">cooldown {{ r.cooldown_minutes }} min</small></td>
+    <td><small>{{ [('e-mail' if r.actions.email else None), ('webhook' if r.actions.webhook else None), ('blocage IP' if r.actions.block_ip else None)]|select|join(', ') or '—' }}</small></td>
+    <td><small>{% if r.last_run_at %}{{ r.last_run_at[:16].replace('T', ' ') }} UTC<br>{% if r.last_status == 'error' %}<span class="pl cr" title="{{ r.last_error }}">erreur</span> {{ r.last_error }}{% else %}{{ r.last_matches }} groupe(s) au-dessus du seuil{% endif %}{% else %}jamais{% endif %}</small></td>
+    <td class="nowrap"><button class="btn s" type="button" data-edit="{{ r.id }}">{{ 'Modifier' if is_admin else 'Tester' }}</button>
+      {% if is_admin and not r.builtin %}<button class="btn s" type="button" data-delete="{{ r.id }}">Supprimer</button>{% endif %}</td>
+  </tr>{% endfor %}
+  </tbody></table></div>
+  <script type="application/json" id="rules-data">{{ rules|tojson }}</script>
+</section>
+
+{% if can_test %}<section class="cd" id="editor">
+  <h2 id="editor-title">{{ 'Nouvelle règle' if is_admin else 'Tester une règle' }}</h2>
+  <p class="sub">Écrivez la condition avec la syntaxe de la barre de recherche Kibana (<i>query_string</i> Lucene), puis <b>testez-la</b> sur les données réelles avant de l’activer.
+    {% if not is_admin %}Seul un administrateur peut enregistrer une règle.{% endif %}</p>
+  <form id="rule-form" class="filters" autocomplete="off">
+    <div class="field"><label for="f-id">Identifiant</label><input class="in" id="f-id" name="id" required pattern="[a-z0-9][a-z0-9-]{2,48}" placeholder="ex. ssh-root-login"></div>
+    <div class="field wide"><label for="f-name">Nom</label><input class="in" id="f-name" name="name" required maxlength="80"></div>
+    <div class="field"><label for="f-type">Type de condition</label><select class="in" id="f-type" name="type">{% for k, v in types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    <div class="field wide"><label for="f-query">Requête Elasticsearch (query_string)</label><input class="in mono" id="f-query" name="query" maxlength="500" placeholder='event.outcome:failure AND user.name:root'></div>
+    <div class="field"><label for="f-window">Fenêtre</label><select class="in" id="f-window" name="window">{% for w in windows %}<option>{{ w }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-group">Regrouper par</label><select class="in" id="f-group" name="group_by">{% for g in group_fields %}<option value="{{ g }}">{{ g or '(aucun)' }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-threshold">Seuil (≥)</label><input class="in" id="f-threshold" name="threshold" type="number" min="1" value="5"></div>
+    <div class="field" data-for="cardinality"><label for="f-distinct">Valeurs distinctes de</label><select class="in" id="f-distinct" name="distinct_field">{% for f in distinct_fields %}<option>{{ f }}</option>{% endfor %}</select></div>
+    <div class="field wide" data-for="pattern"><label for="f-pattern">Motif (regex Python sur le message)</label><input class="in mono" id="f-pattern" name="pattern" maxlength="200"></div>
+    <div class="field"><label for="f-hours">Hors horaires (début-fin)</label><input class="in" id="f-hours" name="outside_hours" placeholder="ex. 7-20 (vide = toujours)"></div>
+    <div class="field"><label for="f-severity">Gravité</label><select class="in" id="f-severity" name="severity">{% for k, v in severities.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="f-cooldown">Cooldown (min)</label><input class="in" id="f-cooldown" name="cooldown_minutes" type="number" min="0" max="1440" value="15"></div>
+    <div class="field wide"><label for="f-desc">Description</label><input class="in" id="f-desc" name="description" maxlength="500"></div>
+    <fieldset class="field wide checks"><legend>Actions</legend>
+      <label><input type="checkbox" name="email" checked> e-mail</label><label><input type="checkbox" name="webhook"> webhook</label>
+      <label><input type="checkbox" name="block_ip"> bloquer l’IP (regroupement source.ip)</label><label><input type="checkbox" name="enabled" checked> active</label></fieldset>
+    <div class="actions"><button class="btn" type="button" id="rule-test">Tester sur les données actuelles</button>
+      {% if is_admin %}<button class="btn p" type="submit">Enregistrer</button>{% endif %}<button class="btn" type="reset" id="rule-new">Nouvelle règle</button></div>
+  </form>
+  <div id="test-result" class="hidden">
+    <h3>Résultat du test</h3><p class="sub" id="test-summary"></p><ul class="plain" id="test-groups"></ul>
+    <details><summary>Requête Elasticsearch exécutée</summary><pre class="raw" id="test-query"></pre></details>
+  </div>
+</section>
+
+<section class="cd">
+  <h2>Webhooks reçus (récepteur de démonstration)</h2>
+  <p class="sub">En laboratoire, les webhooks sont envoyés au récepteur intégré <code>/hooks/demo/&lt;jeton&gt;</code> au lieu de Slack, Discord ou Teams
+    (format réglable par <code>ALERT_WEBHOOK_FORMAT</code>). Les 20 derniers :</p>
+  <ul class="plain" id="inbox"><li class="sub">Chargement…</li></ul>
+</section>{% endif %}
+{% endblock %}

@@ -1,12 +1,22 @@
+# Filebeat lit le journal sshd comme sur un vrai serveur (tail -f) et publie chaque ligne brute dans Kafka.
+# Kafka sert de tampon : si Logstash redémarre, les lignes attendent dans le topic et rien n'est perdu.
 filebeat.inputs:
   - type: filestream
-    id: sentinel-sample-auth
+    id: sentinel-sshd
     enabled: true
-    paths: [/data/samples/stream-auth.jsonl]
-    parsers:
-      - ndjson:
-          target: ''
-          add_error_key: true
-output.logstash:
-  hosts: ['logstash:5044']
+    paths: [/var/log/sentinel/*.log]
+    prospector.scanner.check_interval: 1s
+    close.on_state_change.inactive: 5m
+output.kafka:
+  hosts: ['kafka:9092']
+  topic: 'logs.auth'
+  codec.format:
+    string: '%{[message]}'
+  required_acks: 1
+  compression: none
+  bulk_flush_frequency: 0.1
+# API de supervision (lue par la page « Sources & chaîne temps réel »), réseau Docker uniquement.
+http.enabled: true
+http.host: 0.0.0.0
+http.port: 5066
 logging.level: info

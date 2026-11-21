@@ -1,0 +1,15 @@
+sequenceDiagram
+  actor U as Utilisateur
+  participant W as Flask
+  participant R as Redis
+  participant M as MongoDB
+  U->>W: POST /api/auth/login
+  W->>R: compteurs d'échecs (IP et compte) ?
+  alt trop d'échecs
+    W-->>U: 429 + Retry-After
+  else
+    W->>M: lecture du compte, vérification du hachage
+    W->>R: nouvelle session sentinel:session:{id} (TTL 2 h)
+    W->>M: audit login_success
+    W-->>U: cookie HttpOnly + jeton CSRF
+  end

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Rapport de conformité{% endblock %}
+{% block h1 %}Rapport mensuel de conformité{% endblock %}
+{% block content %}
+<form class="toolbar report-bar" method="get">
+  <p class="sub">Un PDF par mois pour le RSSI et l’audit : contrôles chiffrés, authentifications, origine des attaques, alertes, escalades, blocages et traçabilité.</p>
+  <div class="actions">
+    <label class="visually-hidden" for="month">Mois</label>
+    <select class="in" id="month" name="month">{% for m in months %}<option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+    <button class="btn s" type="submit">Afficher</button>
+    <a class="btn s p" href="{{ url_for('api.monthly_report', month=month) }}">Télécharger le PDF</a>
+  </div>
+</form>
+{% if error %}<div class="alert err" role="status">{{ error }}</div>{% endif %}
+{% if d %}
+{% if d.partial %}<div class="alert info" role="status">Mois en cours : les chiffres seront complets le 1er du mois suivant.</div>{% endif %}
+<div class="g g4">
+  <div class="cd sh kp"><span>Événements indexés</span><div class="row"><div><b>{{ d.logs.events }}</b></div></div></div>
+  <div class="cd sh kp"><span>Connexions échouées</span><div class="row"><div><b>{{ d.logs.auth_failure }}</b><em class="mu">{{ d.logs.failing_ips }} IP distinctes</em></div></div></div>
+  <div class="cd sh kp"><span>Alertes</span><div class="row"><div><b>{{ d.alerts.total }}</b><em class="mu">{{ d.alerts.escalated }} escaladée(s)</em></div></div></div>
+  <div class="cd sh kp"><span>MTTR</span><div class="row"><div><b>{{ d.alerts.mttr_min if d.alerts.mttr_min is not none else '—' }}{% if d.alerts.mttr_min is not none %} min{% endif %}</b><em class="mu">{{ d.alerts.resolved }} résolue(s)</em></div></div></div>
+</div>
+<section class="cd block">
+  <h2>Contrôles du mois</h2>
+  <table><thead><tr><th>Contrôle</th><th>Cible</th><th>Mesuré</th><th>Verdict</th></tr></thead><tbody>
+  {% for c in d.controls %}<tr><td>{{ c.label }}</td><td>{{ c.target }}</td><td>{{ c.value }}</td>
+    <td>{% if c.ok %}<span class="pl ok">conforme</span>{% elif c.ok is none %}<span class="pl mu">sans objet</span>{% else %}<span class="pl cr">à corriger</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+<div class="g g2">
+  <section class="cd"><h2>IP les plus en échec</h2>
+    {% if d.logs.top_ips %}<table><thead><tr><th>IP</th><th>Pays</th><th>Échecs</th><th>Comptes</th></tr></thead><tbody>
+    {% for x in d.logs.top_ips[:6] %}<tr><td class="mono"><a class="iplink" href="{{ url_for('web.search_page', ip=x.ip, outcome='failure') }}">{{ x.ip }}</a></td><td>{{ x.country or '—' }}</td><td>{{ x.failures }}</td><td>{{ x.users }}</td></tr>{% endfor %}
+    </tbody></table>{% else %}<p class="sub">Aucun échec de connexion ce mois-ci.</p>{% endif %}</section>
+  <section class="cd"><h2>Alertes par règle</h2>
+    {% if d.alerts.by_rule %}<ol class="toprules">{% for r, n in d.alerts.by_rule[:6] %}<li><i>{{ loop.index }}.</i><span>{{ r }}</span><b>{{ n }}</b></li>{% endfor %}</ol>
+    {% else %}<p class="sub">Aucune alerte ce mois-ci.</p>{% endif %}</section>
+</div>
+{% endif %}
+{% endblock %}

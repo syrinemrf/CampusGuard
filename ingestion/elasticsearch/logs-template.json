@@ -5,13 +5,13 @@
     "settings": {"number_of_shards": 1, "number_of_replicas": 0, "index.refresh_interval": "5s"},
     "mappings": {"dynamic": false, "properties": {
       "@timestamp": {"type": "date"}, "message": {"type": "text"},
-      "event": {"properties": {"category": {"type": "keyword"}, "action": {"type": "keyword"}, "outcome": {"type": "keyword"}}},
-      "log": {"properties": {"level": {"type": "keyword"}}},
+      "event": {"properties": {"category": {"type": "keyword"}, "action": {"type": "keyword"}, "outcome": {"type": "keyword"}, "ingested": {"type": "date"}}},
+      "log": {"properties": {"level": {"type": "keyword"}, "origin": {"properties": {"file": {"properties": {"name": {"type": "keyword"}, "line": {"type": "integer"}}}}}}},
       "service": {"properties": {"name": {"type": "keyword"}}},
       "user": {"properties": {"name": {"type": "keyword"}}},
       "source": {"properties": {"ip": {"type": "ip", "ignore_malformed": false}, "geo": {"properties": {"location": {"type": "geo_point"}, "country_iso_code": {"type": "keyword"}}}}},
       "destination": {"properties": {"port": {"type": "integer"}}},
-      "labels": {"properties": {"ground_truth": {"type": "keyword"}}},
+      "labels": {"properties": {"ground_truth": {"type": "keyword"}, "upload_id": {"type": "keyword"}, "provenance": {"type": "keyword"}, "time_mode": {"type": "keyword"}}},
       "rule": {"properties": {"name": {"type": "keyword"}}},
       "threat": {"properties": {"technique": {"properties": {"id": {"type": "keyword"}}}}}
     }}

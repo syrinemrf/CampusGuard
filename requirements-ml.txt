@@ -1,0 +1,7 @@
+# Expériences S6 (hors application) : python experiments/run_s6.py
+-r app/requirements.txt
+matplotlib==3.10.7
+drain3==0.9.11
+# MiniLM en ONNX (facultatif ; MINILM_DIR = dossier contenant model.onnx et tokenizer.json de all-MiniLM-L6-v2)
+onnxruntime==1.23.2
+tokenizers==0.22.1
