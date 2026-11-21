@@ -37,14 +37,17 @@ services:
     image: mongo:${MONGO_VERSION:-7.0}
     restart: unless-stopped
     mem_limit: 384m
+    # Cache WiredTiger borné : sinon mongod prend la moitié de la limite et le contrôle de santé (mongosh, Node.js)
+    # n'a plus assez de mémoire ni de temps sur une machine chargée → conteneur « unhealthy » alors que la base répond.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     ports: ["127.0.0.1:27017:27017"]
     volumes: ["mongo-data:/data/db"]
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok' | grep 1"]
+      test: ["CMD", "mongosh", "--norc", "--quiet", "--eval", "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"]
       interval: 15s
-      timeout: 8s
-      retries: 15
-      start_period: 20s
+      timeout: 30s
+      retries: 20
+      start_period: 60s
     networks: [sentinel]
   redis:
     image: redis:${REDIS_VERSION:-7.4}-alpine
